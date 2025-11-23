@@ -1,34 +1,9 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { defineChain } from "viem";
+import { createPublicClient, createWalletClient, http, type PublicClient, type WalletClient } from "viem";
+import { spicyTestnet } from "./chains";
 
-// Define Spicy Testnet chain
-export const spicyTestnet = defineChain({
-  id: 88882,
-  name: "Spicy Testnet",
-  network: "spicy-testnet",
-  nativeCurrency: {
-    decimals: 18,
-    name: "Chiliz",
-    symbol: "CHZ",
-  },
-  rpcUrls: {
-    default: {
-      http: ["https://spicy-rpc.chiliz.com"],
-      webSocket: ["wss://spicy-rpc-ws.chiliz.com"],
-    },
-    public: {
-      http: ["https://spicy-rpc.chiliz.com"],
-      webSocket: ["wss://spicy-rpc-ws.chiliz.com"],
-    },
-  },
-  blockExplorers: {
-    default: {
-      name: "Chiliscan",
-      url: "https://testnet.chiliscan.com",
-    },
-  },
-  testnet: true,
-});
+// Re-export chain for convenience
+export { spicyTestnet };
 
 // Create wagmi config
 export const config = getDefaultConfig({
@@ -38,3 +13,45 @@ export const config = getDefaultConfig({
   chains: [spicyTestnet],
   ssr: true, // Enable SSR for Next.js
 });
+
+/**
+ * Public client for read operations
+ * Can be used both client-side and server-side
+ */
+export const publicClient: PublicClient = createPublicClient({
+  chain: spicyTestnet,
+  transport: http(spicyTestnet.rpcUrls.default.http[0]),
+}) as unknown as PublicClient;
+
+/**
+ * Get a public client instance
+ * Useful for server-side operations or when you need a standalone client
+ */
+export function getPublicClient(): PublicClient {
+  return publicClient;
+}
+
+/**
+ * Get a wallet client instance
+ * Note: This requires a browser environment with a wallet provider
+ * For write operations in React components, use wagmi hooks instead
+ * 
+ * In practice, wagmi hooks handle wallet clients automatically.
+ * This function is provided for edge cases where you need direct access.
+ */
+export function getWalletClient(): WalletClient | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  
+  // Note: In most cases, use wagmi hooks (useWriteContract, useWalletClient) instead
+  // This is a fallback for programmatic wallet operations
+  try {
+    return createWalletClient({
+      chain: spicyTestnet,
+      transport: http(spicyTestnet.rpcUrls.default.http[0]),
+    }) as unknown as WalletClient;
+  } catch {
+    return null;
+  }
+}

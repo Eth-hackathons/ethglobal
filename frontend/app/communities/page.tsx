@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Header } from "@/components/layout/Header";
 import { CommunityCard } from "@/components/CommunityCard";
 import { CreateCommunityForm } from "@/components/CreateCommunityForm";
@@ -14,68 +14,89 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Search, Plus } from "lucide-react";
+import { useContractRead, useContractReads } from "@/hooks";
+import { CONTRACT_ADDRESSES } from "@/lib";
+import PredictionHubABI from "@/lib/abis/PredictionHub.json";
+import type { Abi } from "viem";
 
 export default function CommunitiesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateCommunityOpen, setIsCreateCommunityOpen] = useState(false);
 
-  // Mock communities data
-  const communities = [
-    {
-      id: "1",
-      name: "Crypto Predictions",
-      description:
-        "Bet on cryptocurrency markets and blockchain events with fellow enthusiasts",
-      memberCount: 1247,
-      activeEvents: 8,
-    },
-    {
-      id: "2",
-      name: "Sports Analytics",
-      description:
-        "Data-driven sports betting with real-time market analysis and community insights",
-      memberCount: 892,
-      activeEvents: 12,
-    },
-    {
-      id: "3",
-      name: "Tech Trends",
-      description:
-        "Predict the future of technology, AI developments, and startup valuations",
-      memberCount: 634,
-      activeEvents: 5,
-    },
-    {
-      id: "4",
-      name: "Political Markets",
-      description:
-        "Election predictions, policy outcomes, and political event forecasting",
-      memberCount: 2103,
-      activeEvents: 15,
-    },
-    {
-      id: "5",
-      name: "Entertainment Bets",
-      description:
-        "Movie releases, award shows, celebrity news, and pop culture predictions",
-      memberCount: 456,
-      activeEvents: 7,
-    },
-    {
-      id: "6",
-      name: "Economic Indicators",
-      description:
-        "GDP, inflation, interest rates, and macroeconomic event predictions",
-      memberCount: 789,
-      activeEvents: 4,
-    },
-  ];
+  // Get community count
+  const { data: communityCount, isLoading: isLoadingCount } = useContractRead({
+    address: CONTRACT_ADDRESSES.PredictionHub,
+    abi: PredictionHubABI as Abi,
+    functionName: "communityCount",
+  });
+
+  // Create contracts array for all communities
+  const communityContracts = useMemo(() => {
+    if (!communityCount) return [];
+    const count = Number(communityCount);
+    return Array.from({ length: count }, (_, i) => ({
+      address: CONTRACT_ADDRESSES.PredictionHub,
+      abi: PredictionHubABI as Abi,
+      functionName: "communities" as const,
+      args: [BigInt(i)] as readonly unknown[],
+    }));
+  }, [communityCount]);
+
+  // Fetch all communities
+  const { data: communitiesData, isLoading: isLoadingCommunities } =
+    useContractReads({
+      contracts: communityContracts,
+      query: {
+        enabled: communityContracts.length > 0,
+      },
+    });
+
+  // Map blockchain data to component format
+  const communities = useMemo(() => {
+    if (!communitiesData) return [];
+
+    return communitiesData
+      .map((data) => {
+        if (!data || data.status !== "success") return null;
+
+        const community = data.result as [
+          bigint, // id
+          string, // name
+          string, // description
+          string, // metadataURI
+          string, // creator
+          bigint, // createdAt
+          bigint, // memberCount
+          bigint, // marketCount
+          boolean // isActive
+        ];
+
+        if (!community[8]) return null; // Skip inactive communities
+
+        return {
+          id: community[0].toString(),
+          name: community[1],
+          description: community[2],
+          memberCount: Number(community[6]),
+          activeEvents: Number(community[7]),
+        };
+      })
+      .filter((c) => c !== null) as Array<{
+      id: string;
+      name: string;
+      description: string;
+      memberCount: number;
+      activeEvents: number;
+    }>;
+  }, [communitiesData]);
 
   const filteredCommunities = communities.filter(
     (community) =>
       community.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       community.description.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const isLoading = isLoadingCount || isLoadingCommunities;
 
   return (
     <div className="min-h-screen">
@@ -111,18 +132,28 @@ export default function CommunitiesPage() {
         </div>
 
         {/* Communities Grid */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCommunities.map((community) => (
-            <CommunityCard key={community.id} {...community} />
-          ))}
-        </div>
-
-        {filteredCommunities.length === 0 && (
+        {isLoading ? (
           <div className="py-20 text-center">
             <p className="text-lg text-muted-foreground">
-              No communities found
+              Loading communities...
             </p>
           </div>
+        ) : (
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {filteredCommunities.map((community) => (
+                <CommunityCard key={community.id} {...community} />
+              ))}
+            </div>
+
+            {filteredCommunities.length === 0 && (
+              <div className="py-20 text-center">
+                <p className="text-lg text-muted-foreground">
+                  No communities found
+                </p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
