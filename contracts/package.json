@@ -2,7 +2,11 @@
   "name": "prediction-hub-contracts",
   "version": "1.0.0",
   "description": "Smart contracts for creator-driven prediction markets on Chiliz",
+  "bin": {
+    "x": "./cli.js"
+  },
   "scripts": {
+    "x": "node cli.js",
     "build": "forge build",
     "test": "forge test --offline",
     "test:verbose": "forge test -vvv --offline",
@@ -11,10 +15,7 @@
     "extract-abi": "node script/extractABI.js",
     "deploy:local": "forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast",
     "deploy:testnet": "forge script script/Deploy.s.sol --rpc-url https://spicy-rpc.chiliz.com --broadcast --verify",
-    "build-and-extract": "npm run build && npm run extract-abi",
-    "cli": "node cli.js",
-    "anvil": "node cli.js run",
-    "dev:setup": "node cli.js deploy && node cli.js register 'Dev Creator' 'ipfs://dev'"
+    "build-and-extract": "npm run build && npm run extract-abi"
   },
   "keywords": [
     "solidity",

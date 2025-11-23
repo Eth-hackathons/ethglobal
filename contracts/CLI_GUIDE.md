@@ -1,436 +1,353 @@
-# Prediction Hub CLI Guide
+# Foundry Utils CLI Guide
 
-A powerful command-line interface for local blockchain development and testing.
+A simple command-line tool to make local blockchain testing easier with Anvil.
 
-## Installation
+## 🚀 Quick Start
 
-The CLI is ready to use! No installation required.
-
-```bash
-# Make it executable (already done)
-chmod +x cli.js
-
-# Optional: Create an alias for easier access
-echo "alias phub='node $(pwd)/cli.js'" >> ~/.zshrc
-source ~/.zshrc
-
-# Now you can use: phub <command>
-```
-
-## Quick Start
-
-### 1. Start Local Blockchain
+### Option 1: Direct Usage (No Installation)
 
 ```bash
-# Start Anvil
-node cli.js run
+# From the contracts directory
+node cli.js <command> [args]
 
-# Or with npm
-npm run anvil
+# Or use npm script
+npm run x <command> [args]
 ```
 
-### 2. Deploy Contracts (in another terminal)
+### Option 2: Install Globally (Recommended)
 
 ```bash
-node cli.js deploy
+# From contracts directory
+npm link
+
+# Now use 'x' anywhere!
+x run
+x accounts
+x fund 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 5ether
 ```
 
-### 3. Complete Example Flow
+### Option 3: Create Alias
+
+Add to your `~/.zshrc` or `~/.bashrc`:
 
 ```bash
-# Register as a creator
-node cli.js register "Alice"
-
-# Create a market
-node cli.js market "pm-123" "Will ETH reach $5k?" 7
-
-# Get the market address from the output, then:
-MARKET=0x... # Replace with actual address
-
-# Stake from different accounts
-node cli.js stake $MARKET 0 5 0    # Account 0 stakes 5 ETH on A
-node cli.js stake $MARKET 1 3 1    # Account 1 stakes 3 ETH on B
-node cli.js stake $MARKET 2 2 2    # Account 2 stakes 2 ETH on Draw
-
-# Check status
-node cli.js status $MARKET
-
-# Trigger execution (as creator)
-node cli.js trigger $MARKET 0      # Creator bets on A
-
-# Settle market (simulate Polymarket return)
-node cli.js settle $MARKET 0 15    # A wins, 15 ETH payout
-
-# Claim rewards (only winner can claim)
-node cli.js claim $MARKET 0        # Account 0 claims
+alias x='node /Users/viniciusassis/Developer/Hackatons/chiss/contracts/cli.js'
 ```
 
-## Command Reference
+Then reload: `source ~/.zshrc`
 
-### Blockchain Commands
+---
 
-#### `run` - Start Anvil
+## 📚 Commands
+
+### `x run` - Start Anvil
+
+Start a local Ethereum blockchain with Anvil.
+
 ```bash
-node cli.js run
+x run
+
+# With custom options
+x run --block-time 2 --accounts 20
 ```
-Starts a local Ethereum blockchain with:
-- 10,000 ETH per account
-- 10 pre-funded accounts
+
+**What it does:**
+- Starts Anvil on `http://localhost:8545`
 - Chain ID: 31337
-- RPC: http://localhost:8545
-
-#### `expose` - Expose via ngrok
-```bash
-node cli.js expose
-```
-Exposes your local Anvil to the internet using ngrok. Useful for:
-- Testing with remote frontends
-- Mobile app development
-- Team collaboration
-
-**Requires:** ngrok installed (`brew install ngrok` or visit ngrok.com)
-
-#### `reset` - Reset Blockchain
-```bash
-node cli.js reset
-```
-Kills Anvil and clears deployment config. Start fresh.
-
-#### `accounts` - List Accounts
-```bash
-node cli.js accounts
-```
-Shows all 10 Anvil test accounts with addresses and private keys.
-
-#### `balance` - Check Balance
-```bash
-# Check specific address
-node cli.js balance 0x123...
-
-# Check all accounts
-node cli.js balance
-```
-
-#### `fund` - Fund Wallet
-```bash
-node cli.js fund 0x123... 10
-node cli.js fund 0x123... 5eth
-```
-Sends ETH from Account 0 to any address.
+- 10 pre-funded accounts with 10,000 ETH each
+- Press Ctrl+C to stop
 
 ---
 
-### Contract Commands
+### `x expose` - Expose via ngrok
 
-#### `deploy` - Deploy Contracts
+Expose your local Anvil to the internet using ngrok.
+
 ```bash
-node cli.js deploy
+x expose
 ```
-Deploys all contracts to Anvil:
-- NetworkConfig
-- MockPolymarket
-- PredictionHub
 
-Saves addresses to `.cli-config.json`.
+**Requirements:**
+- Install ngrok: `brew install ngrok` or from https://ngrok.com/download
 
-#### `status` - Get Status
-```bash
-# Hub statistics
-node cli.js status
-
-# Specific market
-node cli.js status 0xMarketAddress...
-```
-Shows:
-- Total creators
-- Total markets
-- Total Value Locked
-- Market pool info
-- Market state
+**Use case:**
+- Test with mobile wallets
+- Share blockchain with team members
+- Connect from external services
 
 ---
 
-### Creator Commands
+### `x fund <address> <amount>` - Fund Wallet
 
-#### `register` - Register as Creator
+Send ETH to any address.
+
 ```bash
-node cli.js register "Your Name"
-node cli.js register "Your Name" "ipfs://metadata-uri"
+x fund 0xYourAddress 10ether
+x fund 0xYourAddress 5000000gwei
+x fund 0xYourAddress 1000000000000000000
 ```
-Registers Account 0 as a creator on the hub.
 
-#### `market` - Create Market
-```bash
-node cli.js market "polymarket-id" "Description" 7
-```
-Creates a new prediction market:
-- **polymarket-id**: ID from Polymarket
-- **Description**: Market question
-- **7**: Days until deadline (default: 7)
-
-Returns the deployed market address.
+**Supported units:**
+- `ether`, `eth`
+- `gwei`
+- `wei` (raw number)
 
 ---
 
-### User Commands
+### `x balance <address>` - Check Balance
 
-#### `stake` - Stake on Outcome
+Check the balance of any address.
+
 ```bash
-node cli.js stake <market> <outcome> <amount> [account]
+x balance 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+
+# Alias
+x bal 0xYourAddress
 ```
 
-**Outcomes:**
-- `0` = A
-- `1` = B
-- `2` = Draw
+**Output:**
+- Balance in ETH
+- Balance in wei
 
-**Examples:**
+---
+
+### `x accounts` - List Test Accounts
+
+Show all Anvil test accounts with their private keys.
+
 ```bash
-# Account 0 stakes 5 ETH on outcome A
-node cli.js stake 0xMarket... 0 5 0
+x accounts
 
-# Account 1 stakes 2.5 ETH on outcome B
-node cli.js stake 0xMarket... 1 2.5 1
-
-# Account 2 stakes 1 ETH on Draw
-node cli.js stake 0xMarket... 2 1 2
+# Alias
+x accs
 ```
 
-#### `claim` - Claim Rewards
+**Output:**
+- 3 main test accounts
+- Addresses and private keys
+- Copy-paste ready for MetaMask
+
+---
+
+### `x deploy` - Deploy Contracts
+
+Deploy all contracts to local Anvil.
+
 ```bash
-node cli.js claim <market> [account]
+x deploy
 ```
 
-Claims winnings after market settlement. Only winners can claim.
+**What it does:**
+- Runs `forge script script/Deploy.s.sol`
+- Uses first Anvil account
+- Broadcasts transactions
+- Shows deployed addresses
+
+---
+
+### `x send <to> [data] [value]` - Send Transaction
+
+Send a transaction to an address or contract.
 
 ```bash
-# Claim as account 0
-node cli.js claim 0xMarket... 0
+# Simple transfer
+x send 0xRecipient "" 1ether
 
-# Claim as account 1
-node cli.js claim 0xMarket... 1
+# Call contract function
+x send 0xContractAddress "registerCreator(string,string)" "MyName" "ipfs://metadata"
+
+# With value
+x send 0xContractAddress "stake(uint8)" 0 --value 2ether
 ```
 
 ---
 
-### Testing Commands
+### `x call <address> <signature> [args]` - Call Contract
 
-#### `trigger` - Trigger Execution
+Call a read-only contract function.
+
 ```bash
-node cli.js trigger <market> <outcome>
+x call 0xHubAddress "getAllMarkets()"
+x call 0xMarketAddress "getStake(address,uint8)" 0xUserAddress 0
+x call 0xHubAddress "isCreator(address)" 0xAddress
 ```
 
-Creator locks the market and selects betting outcome:
-```bash
-# Creator bets on outcome A
-node cli.js trigger 0xMarket... 0
-```
+**Note:** This doesn't cost gas (read-only).
 
-#### `settle` - Settle Market
-```bash
-node cli.js settle <market> <winning-outcome> <payout-eth>
-```
+---
 
-Simulates Polymarket resolution:
-```bash
-# A wins with 10 ETH payout
-node cli.js settle 0xMarket... 0 10
+### `x block` - Get Block Number
 
-# Draw wins with 5 ETH payout
-node cli.js settle 0xMarket... 2 5
+Show current block number.
+
+```bash
+x block
 ```
 
 ---
 
-## Advanced Usage
+### `x help` - Show Help
 
-### Using with npm scripts
+Display all available commands.
 
 ```bash
-# Start Anvil
-npm run anvil
-
-# Deploy and setup
-npm run dev:setup
-
-# Use CLI
-npm run cli -- deploy
-npm run cli -- register "Alice"
-npm run cli -- help
-```
-
-### Environment Variables
-
-Create a `.env` file:
-```bash
-# Custom RPC URL
-RPC_URL=http://localhost:8545
-
-# Default account (0-9)
-DEFAULT_ACCOUNT=0
-```
-
-### Config File
-
-Deployed addresses are stored in `.cli-config.json`:
-```json
-{
-  "networkConfig": "0x...",
-  "mockPolymarket": "0x...",
-  "predictionHub": "0x...",
-  "deployedAt": "2024-..."
-}
+x help
+x --help
+x -h
 ```
 
 ---
 
-## Complete Test Scenario
+## 💡 Common Workflows
 
-Here's a full end-to-end test:
+### 1. Start Fresh Local Blockchain
 
 ```bash
 # Terminal 1: Start Anvil
-node cli.js run
+x run
 
-# Terminal 2: Setup and test
-cd contracts
+# Terminal 2: Deploy contracts
+x deploy
 
-# Deploy
-node cli.js deploy
+# Terminal 3: Extract ABIs
+npm run extract-abi
+```
 
-# Register creator (Account 0)
-node cli.js register "Alice" "ipfs://alice"
+### 2. Test Creator Registration
 
-# Create a market (7 days from now)
-node cli.js market "pm-soccer" "Who wins the match?" 7
-# Save the market address: MARKET=0x...
+```bash
+# Start Anvil
+x run
 
-# Check initial status
-node cli.js status
-node cli.js status $MARKET
+# In another terminal
+x deploy
 
-# Users stake (simulate 3 different users)
-node cli.js stake $MARKET 0 5 0    # Alice: 5 ETH on Team A
-node cli.js stake $MARKET 1 3 1    # Bob: 3 ETH on Team B
-node cli.js stake $MARKET 2 2 2    # Charlie: 2 ETH on Draw
+# Get hub address from deployment output
+HUB=0x5FbDB2315678afecb367f032d93F642f64180aa3
 
-# Check pool
-node cli.js status $MARKET
-# Should show: A=5, B=3, Draw=2 (total 10 ETH)
+# Register as creator
+x send $HUB "registerCreator(string,string)" "Alice" "ipfs://alice"
 
-# Creator triggers (Alice bets on Team A)
-node cli.js trigger $MARKET 0
+# Check if registered
+x call $HUB "isCreator(address)" 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+```
 
-# Check state
-node cli.js status $MARKET
-# State should be: MockTrading
+### 3. Create and Fund a Market
 
-# Settle: Team A wins with profit
-node cli.js settle $MARKET 0 15    # 15 ETH payout (5 ETH profit)
+```bash
+# Create market
+x send $HUB "createMarket(string,string,uint256)" "pm-123" "ETH to 5k?" 1735689600
 
-# Winners claim (only Alice can claim, she staked on A)
-node cli.js claim $MARKET 0
-# Alice gets 15 ETH
+# Get market address from event logs
+MARKET=0xNewMarketAddress
 
-# Bob and Charlie try to claim (should fail)
-node cli.js claim $MARKET 1  # ❌ Can't claim (staked on B)
-node cli.js claim $MARKET 2  # ❌ Can't claim (staked on Draw)
+# User stakes on outcome A
+x send $MARKET "stake(uint8)" 0 --value 2ether
 
-# Check final balances
-node cli.js balance
+# Check pool info
+x call $MARKET "getPoolInfo()"
+```
+
+### 4. Expose for Mobile Testing
+
+```bash
+# Terminal 1
+x run
+
+# Terminal 2
+x expose
+
+# Copy ngrok URL and use in mobile wallet
 ```
 
 ---
 
-## Troubleshooting
+## 🔧 Configuration
 
-### "Anvil not running"
-```bash
-# Start Anvil in another terminal
-node cli.js run
+### Default Settings
+
+```javascript
+RPC URL: http://localhost:8545
+Chain ID: 31337
+Default Private Key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 ```
 
-### "No deployed contracts"
+### Anvil Test Accounts
+
+| # | Address | Private Key | Balance |
+|---|---------|-------------|---------|
+| 0 | `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266` | `0xac0974...` | 10,000 ETH |
+| 1 | `0x70997970C51812dc3A010C7d01b50e0d17dc79C8` | `0x59c699...` | 10,000 ETH |
+| 2 | `0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC` | `0x5de411...` | 10,000 ETH |
+
+---
+
+## 🐛 Troubleshooting
+
+### "Command not found: x"
+
+**Solution 1:** Use direct path
 ```bash
-# Deploy contracts
-node cli.js deploy
+node /path/to/contracts/cli.js run
 ```
 
-### "Not a creator"
+**Solution 2:** Run `npm link` from contracts directory
+
+**Solution 3:** Create an alias in your shell config
+
+### "cast: command not found"
+
+Install Foundry:
 ```bash
-# Register first
-node cli.js register "Your Name"
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
 ```
 
-### "Can't claim"
-You can only claim if:
-1. Market is settled
-2. You staked on the creator's chosen outcome
-3. That outcome won
-4. You haven't claimed already
+### "Connection refused"
 
-### Reset everything
+Make sure Anvil is running:
 ```bash
-node cli.js reset
-node cli.js run  # In another terminal
-node cli.js deploy
+x run
+```
+
+### "ngrok not found"
+
+Install ngrok:
+```bash
+# macOS
+brew install ngrok
+
+# Or download from
+https://ngrok.com/download
 ```
 
 ---
 
-## Tips & Tricks
+## 📝 Tips
 
-### 1. Create bash aliases
-```bash
-# Add to ~/.zshrc or ~/.bashrc
-alias phub='node /path/to/contracts/cli.js'
-alias anvil-start='cd /path/to/contracts && node cli.js run'
-```
-
-### 2. Quick deploy script
-```bash
-# deploy-dev.sh
-#!/bin/bash
-node cli.js deploy
-node cli.js register "Dev Account"
-echo "Ready for development!"
-```
-
-### 3. Multiple markets
-```bash
-# Create several markets
-for i in {1..5}; do
-  node cli.js market "market-$i" "Test Market $i" 7
-done
-```
-
-### 4. Fund external wallet
-```bash
-# Fund your MetaMask
-node cli.js fund 0xYourMetaMaskAddress 100
-```
-
-### 5. Monitor in real-time
-```bash
-# Watch contract status
-watch -n 2 'node cli.js status $MARKET'
-```
+1. **Keep Anvil Running:** Leave `x run` running in a dedicated terminal
+2. **Use Account Aliases:** Create shortcuts for frequently used addresses
+3. **Save Deployment Addresses:** Keep a note of deployed contract addresses
+4. **Watch Gas:** Anvil shows gas used for each transaction
+5. **Reset State:** Restart Anvil to reset blockchain state
 
 ---
 
-## Next Steps
+## 🔮 Future Commands (Coming Soon)
 
-- Integrate with your frontend
-- Add more CLI commands as needed
-- Create automated test scripts
-- Set up CI/CD with CLI commands
+- `x snapshot` - Save blockchain state
+- `x restore` - Restore from snapshot
+- `x impersonate <address>` - Impersonate any address
+- `x mine <blocks>` - Mine blocks
+- `x time <seconds>` - Fast forward time
+- `x logs <address>` - Watch contract events
+- `x decode <data>` - Decode transaction data
 
 ---
 
-## Support
+## 🆘 Need Help?
 
-For issues or questions:
-- Check the main README.md
-- Review test files for usage examples
-- Run `node cli.js help` for quick reference
+Run `x help` to see all commands, or check the examples above!
+
+**Happy Testing! 🚀**
 

@@ -35,9 +35,6 @@ yarn-error.log*
 contracts/ABI/deployment.json
 contracts/ABI/deployment-*.json
 
-# CLI config (deployment-specific)
-contracts/.cli-config.json
-
 # Temp files
 *.tmp
 *.temp

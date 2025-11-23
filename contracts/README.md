@@ -20,11 +20,11 @@ A creator-driven prediction market platform built on Solidity using Foundry. Cre
 - ✅ Proportional reward distribution to winners
 - ✅ Comprehensive test coverage
 - ✅ Multi-chain configuration (Anvil, Chiliz Testnet, Chiliz Mainnet)
-- ✅ **Powerful CLI for local development and testing**
 
 ## 📋 Prerequisites
 
 - [Foundry](https://book.getfoundry.sh/getting-started/installation)
+- Node.js (for CLI tools)
 - Git
 
 ```bash
@@ -32,6 +32,43 @@ A creator-driven prediction market platform built on Solidity using Foundry. Cre
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
 ```
+
+## 🛠️ Local Development CLI
+
+We've created a simple CLI to make local testing easier:
+
+```bash
+# Show all commands
+node cli.js help
+
+# Start Anvil
+node cli.js run
+
+# List test accounts with private keys
+node cli.js accounts
+
+# Fund a wallet
+node cli.js fund 0xYourAddress 10ether
+
+# Check balance
+node cli.js balance 0xYourAddress
+
+# Deploy contracts
+node cli.js deploy
+
+# See CLI_GUIDE.md for full documentation
+```
+
+**Install globally (optional):**
+```bash
+npm link
+# Now use 'x' command anywhere!
+x run
+x accounts
+x fund 0xAddress 5ether
+```
+
+See [CLI_GUIDE.md](./CLI_GUIDE.md) for complete documentation.
 
 ## 🛠️ Installation
 
@@ -74,53 +111,6 @@ This creates an `ABI/` folder containing:
 - Network configuration
 
 See `ABI/README.md` for frontend integration examples with ethers.js, wagmi, and viem.
-
-## 🛠️ CLI - Local Development Tool
-
-A powerful command-line interface for local blockchain development and testing.
-
-### Quick Start
-
-```bash
-# Terminal 1: Start Anvil
-node cli.js run
-
-# Terminal 2: Deploy and test
-node cli.js deploy
-node cli.js register "Alice"
-node cli.js market "pm-123" "Will ETH hit $5k?" 7
-node cli.js stake <market-addr> 0 5 0
-node cli.js status <market-addr>
-```
-
-### Available Commands
-
-```bash
-# Blockchain
-node cli.js run            # Start Anvil
-node cli.js expose         # Expose via ngrok
-node cli.js accounts       # List test accounts
-node cli.js balance        # Check balances
-node cli.js fund 0x... 10  # Fund wallet
-
-# Contracts
-node cli.js deploy         # Deploy contracts
-node cli.js status         # Get contract status
-
-# Creator
-node cli.js register "Name"           # Register creator
-node cli.js market "id" "desc" 7      # Create market
-
-# Users
-node cli.js stake <market> 0 5 0      # Stake on outcome
-node cli.js claim <market> 0          # Claim rewards
-
-# Testing
-node cli.js trigger <market> 0        # Trigger execution
-node cli.js settle <market> 0 10      # Settle market
-```
-
-**Full documentation:** See `CLI_GUIDE.md` for complete reference and examples.
 
 ## 🧪 Testing
 
