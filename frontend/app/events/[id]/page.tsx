@@ -138,9 +138,11 @@ export default function EventDetailPage() {
             <div className="mb-8 rounded-xl border border-border bg-card p-6 shadow-card">
               <h2 className="mb-6 text-2xl font-bold">Place Your Bet</h2>
               <BettingInterface
-                eventId={event.id}
-                currentOdds={event.odds}
+                eventId={event.id} // Market address
+                currentOdds={event.odds} // Fallback odds (will be overridden by contract data)
                 isExecutionWindow={isExecutionWindow}
+                marketState={event.status === "open" ? 0 : event.status === "closed" ? 1 : 0}
+                stakingDeadline={Math.floor(event.marketCloseTime.getTime() / 1000)}
               />
             </div>
           )}
