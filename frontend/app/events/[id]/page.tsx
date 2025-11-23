@@ -6,19 +6,30 @@ import { BettingInterface } from "@/components/BettingInterface";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { ChatContainer } from "@/components/ChatContainer";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MessageSquare, Loader2 } from "lucide-react";
+import {
+  ExternalLink,
+  MessageSquare,
+  Loader2,
+  Trophy,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useMemo } from "react";
-import { useContractRead, useContractReads } from "@/hooks";
+import { useMemo, useEffect, useState } from "react";
+import { useAccount } from "wagmi";
+import { useContractRead, useContractReads, useContractWrite } from "@/hooks";
+import { useWaitForTransactionReceipt } from "wagmi";
 import { CONTRACT_ADDRESSES } from "@/lib";
 import MarketABI from "@/lib/abis/Market.json";
 import PredictionHubABI from "@/lib/abis/PredictionHub.json";
 import { formatEther } from "viem";
+import { toast } from "sonner";
 import type { Abi, Address } from "viem";
 
 export default function EventDetailPage() {
   const params = useParams();
   const marketAddress = params.id as string;
+  const { address, isConnected } = useAccount();
 
   // Fetch market data from contract
   const marketContracts = useMemo(
@@ -103,6 +114,168 @@ export default function EventDetailPage() {
       enabled: !!hubAddress && communityId !== undefined,
     },
   });
+
+  // Fetch user's stake data and claim eligibility
+  const userStakeContracts = useMemo(
+    () =>
+      marketAddress && marketAddress.startsWith("0x") && address
+        ? [
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "getStake" as const,
+              args: [address as Address, 0], // Outcome.A (Yes)
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "getStake" as const,
+              args: [address as Address, 1], // Outcome.B (No)
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "canClaim" as const,
+              args: [address as Address],
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "getPotentialReward" as const,
+              args: [address as Address],
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "hasClaimed" as const,
+              args: [address as Address],
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "chosenOutcome" as const,
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "winningOutcome" as const,
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "isSettled" as const,
+            },
+          ]
+        : [],
+    [marketAddress, address]
+  );
+
+  const { data: userStakeData, isLoading: isLoadingUserStake } =
+    useContractReads({
+      contracts: userStakeContracts,
+      query: {
+        enabled: userStakeContracts.length > 0 && isConnected,
+        refetchInterval: 5000,
+      },
+    });
+
+  // Parse user stake data
+  const userStakeInfo = useMemo(() => {
+    if (!userStakeData || userStakeData.length < 8 || !address) return null;
+
+    const [
+      stakeYesResult,
+      stakeNoResult,
+      canClaimResult,
+      potentialRewardResult,
+      hasClaimedResult,
+      chosenOutcomeResult,
+      winningOutcomeResult,
+      isSettledResult,
+    ] = userStakeData;
+
+    if (
+      stakeYesResult?.status !== "success" ||
+      stakeNoResult?.status !== "success" ||
+      canClaimResult?.status !== "success" ||
+      potentialRewardResult?.status !== "success" ||
+      hasClaimedResult?.status !== "success" ||
+      chosenOutcomeResult?.status !== "success" ||
+      winningOutcomeResult?.status !== "success" ||
+      isSettledResult?.status !== "success"
+    ) {
+      return null;
+    }
+
+    const stakeYes = stakeYesResult.result as bigint;
+    const stakeNo = stakeNoResult.result as bigint;
+    const canClaim = canClaimResult.result as boolean;
+    const potentialReward = potentialRewardResult.result as bigint;
+    const hasClaimed = hasClaimedResult.result as boolean;
+    const chosenOutcome = chosenOutcomeResult.result as number;
+    const winningOutcome = winningOutcomeResult.result as number;
+    const isSettled = isSettledResult.result as boolean;
+
+    return {
+      stakeYes: Number(formatEther(stakeYes)),
+      stakeNo: Number(formatEther(stakeNo)),
+      totalStake: Number(formatEther(stakeYes + stakeNo)),
+      canClaim,
+      potentialReward: Number(formatEther(potentialReward)),
+      hasClaimed,
+      chosenOutcome,
+      winningOutcome,
+      isSettled,
+      hasStake: stakeYes > BigInt(0) || stakeNo > BigInt(0),
+    };
+  }, [userStakeData, address]);
+
+  // Claim functionality
+  const {
+    write: claimWrite,
+    hash: claimTxHash,
+    isLoading: isClaimPending,
+    error: claimError,
+    canWrite: canClaimWrite,
+    reset: resetClaim,
+  } = useContractWrite({
+    address: marketAddress as Address,
+    abi: MarketABI as Abi,
+    functionName: "claim",
+  });
+
+  const {
+    isLoading: isClaimConfirming,
+    isSuccess: isClaimConfirmed,
+    error: claimTxError,
+  } = useWaitForTransactionReceipt({
+    hash: claimTxHash,
+  });
+
+  const [hasShownClaimSuccess, setHasShownClaimSuccess] = useState(false);
+  const [hasShownClaimError, setHasShownClaimError] = useState(false);
+
+  // Handle claim success
+  useEffect(() => {
+    if (isClaimConfirmed && claimTxHash && !hasShownClaimSuccess) {
+      setHasShownClaimSuccess(true);
+      toast.success("Rewards claimed successfully!", { id: "claim" });
+      resetClaim();
+    }
+  }, [isClaimConfirmed, claimTxHash, hasShownClaimSuccess, resetClaim]);
+
+  // Handle claim errors
+  useEffect(() => {
+    if ((claimError || claimTxError) && !hasShownClaimError) {
+      setHasShownClaimError(true);
+      const errorMsg =
+        claimError?.message ||
+        claimTxError?.message ||
+        "Failed to claim rewards";
+      toast.error(errorMsg, { id: "claim" });
+      resetClaim();
+    }
+  }, [claimError, claimTxError, hasShownClaimError, resetClaim]);
 
   // Parse market data
   const marketInfo = useMemo(() => {
@@ -349,6 +522,8 @@ export default function EventDetailPage() {
                     CHZ
                   </div>
                 </div>
+
+                {/*
                 <Button variant="outline" asChild>
                   <a
                     href={marketInfo.polymarketUrl}
@@ -359,6 +534,7 @@ export default function EventDetailPage() {
                     View on Polymarket
                   </a>
                 </Button>
+                */}
               </div>
             </div>
           )}
@@ -381,8 +557,139 @@ export default function EventDetailPage() {
             </div>
           )}
 
+          {/* User Stake Information */}
+          {isConnected && userStakeInfo && userStakeInfo.hasStake && (
+            <div className="mb-8 rounded-xl border border-border bg-card p-6 shadow-card">
+              <h2 className="mb-4 text-xl font-bold">Your Bets</h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                {userStakeInfo.stakeYes > 0 && (
+                  <div className="rounded-lg border border-success/30 bg-success/5 p-4">
+                    <div className="mb-2 text-sm text-muted-foreground">
+                      YES Bet
+                    </div>
+                    <div className="text-2xl font-bold text-success">
+                      {userStakeInfo.stakeYes.toFixed(4)} CHZ
+                    </div>
+                  </div>
+                )}
+                {userStakeInfo.stakeNo > 0 && (
+                  <div className="rounded-lg border border-danger/30 bg-danger/5 p-4">
+                    <div className="mb-2 text-sm text-muted-foreground">
+                      NO Bet
+                    </div>
+                    <div className="text-2xl font-bold text-danger">
+                      {userStakeInfo.stakeNo.toFixed(4)} CHZ
+                    </div>
+                  </div>
+                )}
+              </div>
+              {userStakeInfo.totalStake > 0 && (
+                <div className="mt-4 border-t border-border pt-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                      Total Staked
+                    </span>
+                    <span className="text-lg font-bold">
+                      {userStakeInfo.totalStake.toFixed(4)} CHZ
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Claim Rewards Section */}
+          {isConnected &&
+            userStakeInfo &&
+            userStakeInfo.isSettled &&
+            !userStakeInfo.hasClaimed && (
+              <div className="mb-8 rounded-xl border border-primary/30 bg-primary/5 p-6">
+                <div className="mb-4 flex items-start gap-4">
+                  {userStakeInfo.canClaim ? (
+                    <Trophy className="h-6 w-6 shrink-0 text-success" />
+                  ) : (
+                    <XCircle className="h-6 w-6 shrink-0 text-muted-foreground" />
+                  )}
+                  <div className="flex-1">
+                    <h3 className="mb-2 text-lg font-bold">
+                      {userStakeInfo.canClaim
+                        ? "🎉 You Won! Claim Your Rewards"
+                        : "Market Settled - No Rewards Available"}
+                    </h3>
+                    {userStakeInfo.canClaim ? (
+                      <div className="space-y-3">
+                        <p className="text-sm text-muted-foreground">
+                          Congratulations! You bet on the winning outcome and
+                          are eligible to claim your rewards.
+                        </p>
+                        <div className="rounded-lg border border-success/30 bg-success/5 p-4">
+                          <div className="mb-1 text-sm text-muted-foreground">
+                            Potential Reward
+                          </div>
+                          <div className="text-2xl font-bold text-success">
+                            {userStakeInfo.potentialReward.toFixed(4)} CHZ
+                          </div>
+                        </div>
+                        <Button
+                          onClick={() => {
+                            setHasShownClaimSuccess(false);
+                            setHasShownClaimError(false);
+                            toast.loading("Claiming rewards...", {
+                              id: "claim",
+                            });
+                            claimWrite?.();
+                          }}
+                          disabled={
+                            isClaimPending ||
+                            isClaimConfirming ||
+                            !canClaimWrite ||
+                            !userStakeInfo.canClaim
+                          }
+                          className="w-full gradient-success hover:opacity-90"
+                        >
+                          {isClaimPending || isClaimConfirming ? (
+                            <>
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                              {isClaimConfirming
+                                ? "Confirming..."
+                                : "Claiming..."}
+                            </>
+                          ) : (
+                            <>
+                              <Trophy className="mr-2 h-5 w-5" />
+                              Claim Rewards
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        You did not bet on the winning outcome, or the market
+                        has not been settled yet.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+          {/* Already Claimed Message */}
+          {isConnected && userStakeInfo && userStakeInfo.hasClaimed && (
+            <div className="mb-8 rounded-xl border border-success/30 bg-success/5 p-6">
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="h-6 w-6 text-success" />
+                <div>
+                  <h3 className="font-bold text-success">Rewards Claimed</h3>
+                  <p className="text-sm text-muted-foreground">
+                    You have already claimed your rewards for this market.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Completed State Message */}
-          {isCompleted && (
+          {isCompleted && !userStakeInfo?.hasStake && (
             <div className="mb-8 rounded-xl border border-muted/50 bg-muted/5 p-6">
               <p className="text-center text-muted-foreground">
                 This event has been completed. Betting is no longer available.
