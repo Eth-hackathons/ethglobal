@@ -2,11 +2,7 @@
   "name": "prediction-hub-contracts",
   "version": "1.0.0",
   "description": "Smart contracts for creator-driven prediction markets on Chiliz",
-  "bin": {
-    "x": "./cli.js"
-  },
   "scripts": {
-    "x": "node cli.js",
     "build": "forge build",
     "test": "forge test --offline",
     "test:verbose": "forge test -vvv --offline",

@@ -24,7 +24,6 @@ A creator-driven prediction market platform built on Solidity using Foundry. Cre
 ## 📋 Prerequisites
 
 - [Foundry](https://book.getfoundry.sh/getting-started/installation)
-- Node.js (for CLI tools)
 - Git
 
 ```bash
@@ -32,43 +31,6 @@ A creator-driven prediction market platform built on Solidity using Foundry. Cre
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
 ```
-
-## 🛠️ Local Development CLI
-
-We've created a simple CLI to make local testing easier:
-
-```bash
-# Show all commands
-node cli.js help
-
-# Start Anvil
-node cli.js run
-
-# List test accounts with private keys
-node cli.js accounts
-
-# Fund a wallet
-node cli.js fund 0xYourAddress 10ether
-
-# Check balance
-node cli.js balance 0xYourAddress
-
-# Deploy contracts
-node cli.js deploy
-
-# See CLI_GUIDE.md for full documentation
-```
-
-**Install globally (optional):**
-```bash
-npm link
-# Now use 'x' command anywhere!
-x run
-x accounts
-x fund 0xAddress 5ether
-```
-
-See [CLI_GUIDE.md](./CLI_GUIDE.md) for complete documentation.
 
 ## 🛠️ Installation
 
