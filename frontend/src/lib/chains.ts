@@ -15,11 +15,9 @@ export const spicyTestnet = defineChain({
   rpcUrls: {
     default: {
       http: ["https://spicy-rpc.chiliz.com"],
-      webSocket: ["wss://spicy-rpc-ws.chiliz.com"],
     },
     public: {
       http: ["https://spicy-rpc.chiliz.com"],
-      webSocket: ["wss://spicy-rpc-ws.chiliz.com"],
     },
   },
   blockExplorers: {
@@ -30,4 +28,3 @@ export const spicyTestnet = defineChain({
   },
   testnet: true,
 });
-

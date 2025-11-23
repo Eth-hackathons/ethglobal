@@ -4,6 +4,8 @@ import { useState, useMemo } from "react";
 import { Header } from "@/components/layout/Header";
 import { CommunityCard } from "@/components/CommunityCard";
 import { CreateCommunityForm } from "@/components/CreateCommunityForm";
+import { RegisterCreatorButton } from "@/components/RegisterCreatorButton";
+import { CheckCreatorButton } from "@/components/CheckCreatorButton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -122,13 +124,17 @@ export default function CommunitiesPage() {
               className="pl-10"
             />
           </div>
-          <Button
-            className="gradient-primary shadow-glow"
-            onClick={() => setIsCreateCommunityOpen(true)}
-          >
-            <Plus className="mr-2 h-5 w-5" />
-            Create Community
-          </Button>
+          <div className="flex flex-wrap gap-3">
+            <CheckCreatorButton />
+            <RegisterCreatorButton />
+            <Button
+              className="gradient-primary shadow-glow"
+              onClick={() => setIsCreateCommunityOpen(true)}
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Create Community
+            </Button>
+          </div>
         </div>
 
         {/* Communities Grid */}
