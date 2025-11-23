@@ -1,0 +1,12 @@
+{
+  "network": "anvil",
+  "chainId": 31337,
+  "deployedAt": null,
+  "deployer": null,
+  "contracts": {
+    "NetworkConfig": null,
+    "MockPolymarket": null,
+    "Market": null,
+    "PredictionHub": null
+  }
+}

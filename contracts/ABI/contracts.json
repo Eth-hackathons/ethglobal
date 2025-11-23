@@ -1,0 +1,40 @@
+{
+  "contracts": {
+    "NetworkConfig": {
+      "abi": "./NetworkConfig.json",
+      "description": "Multi-chain configuration contract"
+    },
+    "MockPolymarket": {
+      "abi": "./MockPolymarket.json",
+      "description": "Mock oracle for testing market resolution"
+    },
+    "Market": {
+      "abi": "./Market.json",
+      "description": "Individual prediction market contract"
+    },
+    "PredictionHub": {
+      "abi": "./PredictionHub.json",
+      "description": "Factory contract for creators and markets"
+    }
+  },
+  "networks": {
+    "anvil": {
+      "chainId": 31337,
+      "name": "Local Anvil"
+    },
+    "chiliz_testnet": {
+      "chainId": 88882,
+      "name": "Chiliz Spicy Testnet",
+      "rpc": "https://spicy-rpc.chiliz.com"
+    },
+    "chiliz_mainnet": {
+      "chainId": 88888,
+      "name": "Chiliz Mainnet",
+      "rpc": "https://rpc.chiliz.com"
+    }
+  },
+  "version": "1.0.0",
+  "extractedAt": "2025-11-23T00:05:36.222Z",
+  "totalContracts": 4,
+  "successfulExtractions": 4
+}

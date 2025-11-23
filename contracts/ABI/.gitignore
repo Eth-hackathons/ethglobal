@@ -1,0 +1,11 @@
+# Ignore actual deployment addresses (these are environment-specific)
+deployment.json
+deployment-*.json
+
+# Keep the template
+!deployment.template.json
+
+# Keep ABIs (these are generated but should be committed for frontend)
+!*.json
+!README.md
+

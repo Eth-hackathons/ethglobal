@@ -1,0 +1,184 @@
+[
+  {
+    "type": "function",
+    "name": "getActiveConfig",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "config",
+        "type": "tuple",
+        "internalType": "struct NetworkConfig.ChainConfig",
+        "components": [
+          {
+            "name": "wrappedNative",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "minStake",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxStakingDuration",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getAnvilConfig",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct NetworkConfig.ChainConfig",
+        "components": [
+          {
+            "name": "wrappedNative",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "minStake",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxStakingDuration",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "getChainName",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getChilizMainnetConfig",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct NetworkConfig.ChainConfig",
+        "components": [
+          {
+            "name": "wrappedNative",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "minStake",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxStakingDuration",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "getChilizTestnetConfig",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct NetworkConfig.ChainConfig",
+        "components": [
+          {
+            "name": "wrappedNative",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "minStake",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxStakingDuration",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "getConfigByChainId",
+    "inputs": [
+      {
+        "name": "chainId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "config",
+        "type": "tuple",
+        "internalType": "struct NetworkConfig.ChainConfig",
+        "components": [
+          {
+            "name": "wrappedNative",
+            "type": "address",
+            "internalType": "address"
+          },
+          {
+            "name": "minStake",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "maxStakingDuration",
+            "type": "uint256",
+            "internalType": "uint256"
+          }
+        ]
+      }
+    ],
+    "stateMutability": "pure"
+  },
+  {
+    "type": "function",
+    "name": "isTestnet",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "bool",
+        "internalType": "bool"
+      }
+    ],
+    "stateMutability": "view"
+  }
+]

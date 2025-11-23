@@ -1,0 +1,31 @@
+{
+  "name": "prediction-hub-contracts",
+  "version": "1.0.0",
+  "description": "Smart contracts for creator-driven prediction markets on Chiliz",
+  "scripts": {
+    "build": "forge build",
+    "test": "forge test --offline",
+    "test:verbose": "forge test -vvv --offline",
+    "test:gas": "forge test --gas-report --offline",
+    "coverage": "forge coverage",
+    "extract-abi": "node script/extractABI.js",
+    "deploy:local": "forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast",
+    "deploy:testnet": "forge script script/Deploy.s.sol --rpc-url https://spicy-rpc.chiliz.com --broadcast --verify",
+    "build-and-extract": "npm run build && npm run extract-abi"
+  },
+  "keywords": [
+    "solidity",
+    "smart-contracts",
+    "prediction-markets",
+    "chiliz",
+    "foundry"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/prediction-hub"
+  }
+}
+
