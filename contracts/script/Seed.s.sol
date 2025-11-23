@@ -133,11 +133,20 @@ contract Seed is Script {
     function runUsers() external {
         _initialize();
         console.log("\n=== Running Phase: Users ===\n");
-        // Get communities from contract
+        // Get communities from contract - get first community from each creator
         uint256[] memory communityIds = new uint256[](3);
-        communityIds[0] = 1;
-        communityIds[1] = 2;
-        communityIds[2] = 3;
+        uint256[] memory creator1Communities = hub.getCreatorCommunities(creator1);
+        uint256[] memory creator2Communities = hub.getCreatorCommunities(creator2);
+        uint256[] memory creator3Communities = hub.getCreatorCommunities(creator3);
+        
+        require(creator1Communities.length > 0, "Creator 1 has no communities");
+        require(creator2Communities.length > 0, "Creator 2 has no communities");
+        require(creator3Communities.length > 0, "Creator 3 has no communities");
+        
+        communityIds[0] = creator1Communities[0];
+        communityIds[1] = creator2Communities[0];
+        communityIds[2] = creator3Communities[0];
+        
         _usersJoinCommunities(communityIds);
         console.log("\n=== Phase Complete ===\n");
     }
@@ -145,10 +154,20 @@ contract Seed is Script {
     function runMarkets() external {
         _initialize();
         console.log("\n=== Running Phase: Markets ===\n");
+        // Get communities from contract - get first community from each creator
         uint256[] memory communityIds = new uint256[](3);
-        communityIds[0] = 1;
-        communityIds[1] = 2;
-        communityIds[2] = 3;
+        uint256[] memory creator1Communities = hub.getCreatorCommunities(creator1);
+        uint256[] memory creator2Communities = hub.getCreatorCommunities(creator2);
+        uint256[] memory creator3Communities = hub.getCreatorCommunities(creator3);
+        
+        require(creator1Communities.length > 0, "Creator 1 has no communities");
+        require(creator2Communities.length > 0, "Creator 2 has no communities");
+        require(creator3Communities.length > 0, "Creator 3 has no communities");
+        
+        communityIds[0] = creator1Communities[0];
+        communityIds[1] = creator2Communities[0];
+        communityIds[2] = creator3Communities[0];
+        
         address[] memory markets = _createActiveMarkets(communityIds);
         console.log("Created", markets.length, "markets");
         console.log("\n=== Phase Complete ===\n");
@@ -157,9 +176,24 @@ contract Seed is Script {
     function runStakes() external {
         _initialize();
         console.log("\n=== Running Phase: Stakes ===\n");
-        // Get market addresses from creator1's markets
-        address[] memory markets = hub.getCreatorMarkets(creator1);
-        require(markets.length > 0, "No markets found. Run 'markets' phase first.");
+        // Get markets from all creators to build the full array
+        address[] memory creator1Markets = hub.getCreatorMarkets(creator1);
+        address[] memory creator2Markets = hub.getCreatorMarkets(creator2);
+        address[] memory creator3Markets = hub.getCreatorMarkets(creator3);
+        
+        require(creator1Markets.length >= 2, "Creator 1 needs at least 2 markets");
+        require(creator2Markets.length >= 2, "Creator 2 needs at least 2 markets");
+        require(creator3Markets.length >= 2, "Creator 3 needs at least 2 markets");
+        
+        // Build markets array: [creator1[0], creator1[1], creator2[0], creator2[1], creator3[0], creator3[1]]
+        address[] memory markets = new address[](6);
+        markets[0] = creator1Markets[0]; // Sports market 1
+        markets[1] = creator1Markets[1]; // Sports market 2 (not used in staking, but needed for array)
+        markets[2] = creator2Markets[0]; // Crypto market 1 (BTC)
+        markets[3] = creator2Markets[1]; // Crypto market 2 (not used in staking)
+        markets[4] = creator3Markets[0]; // Politics market 1
+        markets[5] = creator3Markets[1]; // Politics market 2 (not used in staking)
+        
         _stakeInMarkets(markets);
         console.log("\n=== Phase Complete ===\n");
     }
@@ -167,10 +201,20 @@ contract Seed is Script {
     function runComplete() external {
         _initialize();
         console.log("\n=== Running Phase: Complete ===\n");
+        // Get communities from contract - get first community from each creator
         uint256[] memory communityIds = new uint256[](3);
-        communityIds[0] = 1;
-        communityIds[1] = 2;
-        communityIds[2] = 3;
+        uint256[] memory creator1Communities = hub.getCreatorCommunities(creator1);
+        uint256[] memory creator2Communities = hub.getCreatorCommunities(creator2);
+        uint256[] memory creator3Communities = hub.getCreatorCommunities(creator3);
+        
+        require(creator1Communities.length > 0, "Creator 1 has no communities");
+        require(creator2Communities.length > 0, "Creator 2 has no communities");
+        require(creator3Communities.length > 0, "Creator 3 has no communities");
+        
+        communityIds[0] = creator1Communities[0];
+        communityIds[1] = creator2Communities[0];
+        communityIds[2] = creator3Communities[0];
+        
         _createAndCompleteMarkets(communityIds);
         console.log("\n=== Phase Complete ===\n");
     }

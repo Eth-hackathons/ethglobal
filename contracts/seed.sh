@@ -167,6 +167,10 @@ fund_if_needed() {
     
     if (( current_cents < required_cents )); then
         local needed=$(echo "$required - $current" | bc)
+        # Format to ensure leading zero for values < 1
+        if [[ "$needed" =~ ^\. ]]; then
+            needed="0$needed"
+        fi
         echo -e "${YELLOW}  Funding $name: $needed CHZ (current: $current, need: $required)${NC}"
         cast send $addr --value "${needed}ether" --private-key $PRIVATE_KEY --rpc-url $RPC_URL --legacy --gas-price ${GAS_PRICE}gwei > /dev/null 2>&1
         echo -e "${GREEN}  ✅ Funded $name${NC}"

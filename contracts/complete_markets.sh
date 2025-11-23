@@ -46,6 +46,68 @@ export PREDICTION_HUB="$PREDICTION_HUB"
 
 # Get addresses
 CREATOR1=$(cast wallet address $CREATOR1_PRIVATE_KEY 2>/dev/null)
+USER1=$(cast wallet address $USER1_PRIVATE_KEY 2>/dev/null)
+USER2=$(cast wallet address $USER2_PRIVATE_KEY 2>/dev/null)
+DEPLOYER=$(cast wallet address $PRIVATE_KEY 2>/dev/null)
+
+# Function to get balance in CHZ
+get_balance() {
+    local addr=$1
+    cast balance $addr --rpc-url $RPC_URL --ether 2>/dev/null | awk '{printf "%.2f", $1}'
+}
+
+# Function to calculate gas price
+get_gas_price() {
+    local current=$(cast gas-price --rpc-url $RPC_URL 2>/dev/null || echo "0")
+    local gwei=$(echo "scale=0; $current / 1000000000" | bc 2>/dev/null || echo "2500")
+    
+    local safe=$(echo "scale=0; $gwei * 1.5" | bc | cut -d. -f1)
+    if (( safe > 5000 )); then
+        safe=5000
+    fi
+    if (( safe < 1000 )); then
+        safe=1000
+    fi
+    echo $safe
+}
+
+# Function to fund account if needed
+fund_if_needed() {
+    local addr=$1
+    local name=$2
+    local required=$3
+    local current=$(get_balance $addr)
+    
+    local current_cents=$(echo "$current * 100" | bc | cut -d. -f1)
+    local required_cents=$(echo "$required * 100" | bc | cut -d. -f1)
+    
+    if (( current_cents < required_cents )); then
+        local needed=$(echo "$required - $current" | bc)
+        # Format to ensure leading zero for values < 1
+        if [[ "$needed" =~ ^\. ]]; then
+            needed="0$needed"
+        fi
+        echo -e "${YELLOW}  Funding $name: $needed CHZ${NC}"
+        GAS_PRICE=$(get_gas_price)
+        cast send $addr --value "${needed}ether" --private-key $PRIVATE_KEY --rpc-url $RPC_URL --legacy --gas-price ${GAS_PRICE}gwei > /dev/null 2>&1
+        echo -e "${GREEN}  ✅ Funded $name${NC}"
+    else
+        echo -e "${GREEN}  ✅ $name: $current CHZ${NC}"
+    fi
+}
+
+# Check and fund accounts
+echo "💰 Checking account balances..."
+echo ""
+DEPLOYER_BALANCE=$(get_balance $DEPLOYER)
+echo "Deployer balance: $DEPLOYER_BALANCE CHZ"
+echo ""
+
+echo "Ensuring accounts have 10 CHZ each..."
+fund_if_needed $CREATOR1 "Creator 1" "10.0"
+fund_if_needed $USER1 "User 1" "10.0"
+fund_if_needed $USER2 "User 2" "10.0"
+echo ""
 
 # Function to get community markets
 get_community_markets() {
