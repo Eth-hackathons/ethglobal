@@ -1,0 +1,25 @@
+# Lock Market API
+# POST /api/market/lock
+# Body: { "marketAddress": "0x...", "outcome": 0 }
+# Outcome: 0 = A, 1 = B, 2 = Draw
+
+curl -X POST https://bf1434f87eba.ngrok-free.app/api/market/lock \
+  -H "Content-Type: application/json" \
+  -d '{
+    "marketAddress": "0xd48143a6E214714a7901A0f37CD6d86232794E27",
+    "outcome": 0
+  }'
+
+# Submit Results API
+# POST /api/market/submit-results
+# Body: { "marketAddress": "0x...", "winningOutcome": 0, "payout": "1.5" }
+# winningOutcome: 0 = A, 1 = B, 2 = Draw
+# payout: Amount in CHZ (as string, e.g., "1.5" for 1.5 CHZ)
+
+curl -X POST https://bf1434f87eba.ngrok-free.app/api/market/submit-results \
+  -H "Content-Type: application/json" \
+  -d '{
+    "marketAddress": "0xd48143a6E214714a7901A0f37CD6d86232794E27",
+    "winningOutcome": 0,
+    "payout": "1.5"
+  }'
