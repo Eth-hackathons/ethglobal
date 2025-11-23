@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useParams } from "next/navigation";
 import { Header } from "@/components/layout/Header";
@@ -13,62 +13,353 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Users, UserPlus, UserMinus, Plus, Crown } from "lucide-react";
-import { useState } from "react";
+import { Users, UserPlus, UserMinus, Plus, Crown, Loader2 } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
+import { useAccount } from "wagmi";
+import { useContractRead, useContractReads } from "@/hooks";
+import { CONTRACT_ADDRESSES } from "@/lib";
+import PredictionHubABI from "@/lib/abis/PredictionHub.json";
+import MarketABI from "@/lib/abis/Market.json";
+import type { Abi, Address } from "viem";
 
 export default function CommunityDetailPage() {
   const params = useParams();
   const id = params.id as string;
+  const { address } = useAccount();
   const [isMember, setIsMember] = useState(false);
   const [isSuggestEventOpen, setIsSuggestEventOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // Mock community data
-  const community = {
-    id: id || "1",
-    name: "Crypto Predictions",
-    description: "Join fellow crypto enthusiasts in predicting market movements, blockchain events, and cryptocurrency trends. We aggregate our predictions for better odds and execute collectively on Polymarket.",
-    memberCount: 1247,
-    activeEvents: 8,
-    creator: "0x1234...5678",
-  };
+  const communityId = useMemo(() => {
+    const parsed = parseInt(id || "0", 10);
+    const result = isNaN(parsed) ? -1 : parsed; // Use -1 for invalid, 0 is valid
+    if (result < 0) {
+      console.warn("Invalid community ID:", id);
+    }
+    return result;
+  }, [id]);
 
-  // Mock ownership check - for design purposes, using a simple comparison
-  // In production, this would check against connected wallet address
-  const mockConnectedAddress = "0x1234...5678"; // Mock connected wallet
-  const isCreator =
-    mockConnectedAddress.toLowerCase() === community.creator.toLowerCase();
+  // Fetch community data
+  const {
+    data: communityData,
+    isLoading: isLoadingCommunity,
+    error: communityError,
+  } = useContractRead({
+    address: CONTRACT_ADDRESSES.PredictionHub,
+    abi: PredictionHubABI as Abi,
+    functionName: "getCommunity",
+    args: [BigInt(communityId)],
+    query: {
+      enabled: communityId >= 0,
+    },
+  });
 
-  // Mock events - using state so we can update after form submission
-  const [events, setEvents] = useState([
-    {
-      id: "1",
-      title: "Will Bitcoin reach $100k by end of 2024?",
-      description: "Predicting if BTC will hit the 100k milestone before year end",
-      marketCloseTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
-      odds: { yes: 0.65, no: 0.35 },
-      status: "open" as const,
-      polymarketUrl: "https://polymarket.com",
+  // Fetch market addresses for this community
+  const { data: marketAddresses, isLoading: isLoadingMarkets } =
+    useContractRead({
+      address: CONTRACT_ADDRESSES.PredictionHub,
+      abi: PredictionHubABI as Abi,
+      functionName: "getCommunityMarkets",
+      args: [BigInt(communityId)],
+      query: {
+        enabled: communityId > 0,
+        refetchInterval: 5000, // Refetch every 5 seconds to catch new markets
+      },
+    });
+
+  // Create contracts array for reading market data
+  const marketContracts = useMemo(() => {
+    if (!marketAddresses || !Array.isArray(marketAddresses)) return [];
+    return marketAddresses.flatMap((marketAddress: Address) => [
+      {
+        address: marketAddress,
+        abi: MarketABI as Abi,
+        functionName: "metadata" as const,
+      },
+      {
+        address: marketAddress,
+        abi: MarketABI as Abi,
+        functionName: "stakingDeadline" as const,
+      },
+      {
+        address: marketAddress,
+        abi: MarketABI as Abi,
+        functionName: "state" as const,
+      },
+      {
+        address: marketAddress,
+        abi: MarketABI as Abi,
+        functionName: "getPoolInfo" as const,
+      },
+      {
+        address: marketAddress,
+        abi: MarketABI as Abi,
+        functionName: "polymarketId" as const,
+      },
+    ]);
+  }, [marketAddresses]);
+
+  // Fetch all market data
+  const { data: marketsData, isLoading: isLoadingMarketData } =
+    useContractReads({
+      contracts: marketContracts,
+      query: {
+        enabled: marketContracts.length > 0,
+      },
+    });
+
+  // Transform community data
+  const community = useMemo(() => {
+    if (!communityData) {
+      console.log("No community data available");
+      return null;
+    }
+
+    console.log("Community data received:", communityData);
+
+    // Handle both array (tuple) and object formats
+    let id: bigint, name: string, description: string, metadataURI: string;
+    let creator: Address,
+      createdAt: bigint,
+      memberCount: bigint,
+      marketCount: bigint,
+      isActive: boolean;
+
+    if (Array.isArray(communityData)) {
+      // Tuple format: [id, name, description, metadataURI, creator, createdAt, memberCount, marketCount, isActive]
+      [
+        id,
+        name,
+        description,
+        metadataURI,
+        creator,
+        createdAt,
+        memberCount,
+        marketCount,
+        isActive,
+      ] = communityData as [
+        bigint,
+        string,
+        string,
+        string,
+        Address,
+        bigint,
+        bigint,
+        bigint,
+        boolean
+      ];
+    } else {
+      // Object format (named struct properties)
+      const data = communityData as any;
+      id =
+        typeof data.id === "bigint"
+          ? data.id
+          : BigInt(data.id || data[0] || "0");
+      name = data.name || data[1] || "";
+      description = data.description || data[2] || "";
+      metadataURI = data.metadataURI || data[3] || "";
+      creator = data.creator || data[4] || "0x";
+      createdAt =
+        typeof data.createdAt === "bigint"
+          ? data.createdAt
+          : BigInt(data.createdAt || data[5] || "0");
+      memberCount =
+        typeof data.memberCount === "bigint"
+          ? data.memberCount
+          : BigInt(data.memberCount || data[6] || "0");
+      marketCount =
+        typeof data.marketCount === "bigint"
+          ? data.marketCount
+          : BigInt(data.marketCount || data[7] || "0");
+      isActive =
+        data.isActive !== undefined
+          ? data.isActive
+          : data[8] !== undefined
+          ? data[8]
+          : false;
+    }
+
+    // Validate that we have at least a name (basic validation)
+    if (!name || name.trim() === "") {
+      console.warn("Community data missing name:", { id, name, description });
+      return null;
+    }
+
+    const result = {
+      id: id.toString(),
+      name,
+      description,
+      metadataURI,
+      creator,
+      memberCount: Number(memberCount),
+      marketCount: Number(marketCount),
+      isActive,
+    };
+
+    console.log("Transformed community:", result);
+    return result;
+  }, [communityData]);
+
+  // Transform market data to EventCard format
+  const events = useMemo(() => {
+    if (!marketsData || !marketAddresses || !Array.isArray(marketAddresses))
+      return [];
+
+    const eventsList = [];
+    const chunkSize = 5; // 5 reads per market
+
+    for (let i = 0; i < marketAddresses.length; i++) {
+      const marketAddress = marketAddresses[i] as Address;
+      const startIdx = i * chunkSize;
+      const chunk = marketsData.slice(startIdx, startIdx + chunkSize);
+
+      if (chunk.length < chunkSize) continue;
+
+      const [
+        metadataResult,
+        stakingDeadlineResult,
+        stateResult,
+        poolInfoResult,
+        polymarketIdResult,
+      ] = chunk;
+
+      if (
+        metadataResult?.status !== "success" ||
+        stakingDeadlineResult?.status !== "success" ||
+        stateResult?.status !== "success" ||
+        poolInfoResult?.status !== "success" ||
+        polymarketIdResult?.status !== "success"
+      ) {
+        continue;
+      }
+
+      const metadataStr = metadataResult.result as string;
+      const stakingDeadline = stakingDeadlineResult.result as bigint;
+      const state = stateResult.result as number;
+      const poolInfo = poolInfoResult.result as [bigint, bigint, bigint];
+      const polymarketId = polymarketIdResult.result as string;
+
+      // Parse metadata JSON (only title and polymarketUrl)
+      let metadata: {
+        title?: string;
+        polymarketUrl?: string;
+      } = {};
+
+      if (metadataStr && metadataStr.trim() !== "") {
+        try {
+          const parsed = JSON.parse(metadataStr);
+          // Ensure parsed is an object
+          if (typeof parsed === "object" && parsed !== null) {
+            metadata = parsed;
+          } else {
+            // If parsed value is not an object, use it as title
+            metadata = { title: String(parsed) };
+          }
+        } catch (e) {
+          // If metadata is not JSON, use it as title
+          console.warn(
+            `Failed to parse metadata for market ${marketAddress}:`,
+            e
+          );
+          metadata = { title: metadataStr };
+        }
+      } else {
+        console.warn(
+          `Empty metadata for market ${marketAddress}, using polymarketId as fallback`
+        );
+      }
+
+      // Calculate odds from pool info (A = yes, B = no)
+      const [totalA, totalB, totalDraw] = poolInfo;
+      const totalPool = totalA + totalB + totalDraw;
+      const yesOdds =
+        totalPool > BigInt(0) ? Number(totalA) / Number(totalPool) : 0.5;
+      const noOdds =
+        totalPool > BigInt(0) ? Number(totalB) / Number(totalPool) : 0.5;
+
+      // Determine status based on state and deadline
+      // MarketState: Open=0, Locked=1, MockBridged=2, MockTrading=3, Settled=4, Completed=5
+      const now = Date.now();
+      const deadline = Number(stakingDeadline) * 1000;
+      const hoursUntilDeadline = (deadline - now) / (1000 * 60 * 60);
+
+      let status: "open" | "closing-soon" | "closed" = "open";
+      if (state === 0 && hoursUntilDeadline < 24 && hoursUntilDeadline > 0) {
+        status = "closing-soon";
+      } else if (state > 0 || hoursUntilDeadline <= 0) {
+        status = "closed";
+      }
+
+      // Build Polymarket URL
+      const polymarketUrl =
+        metadata.polymarketUrl ||
+        `https://polymarket.com/event/${polymarketId}`;
+
+      // Determine title with fallbacks
+      let title = metadata.title;
+      if (!title || title.trim() === "") {
+        // Fallback 1: Use polymarketId if available
+        if (polymarketId && polymarketId.trim() !== "") {
+          // Format polymarketId nicely (replace hyphens with spaces, capitalize)
+          title = polymarketId
+            .split("-")
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ");
+        } else {
+          // Fallback 2: Use market address
+          title = `Market ${marketAddress.slice(0, 6)}...${marketAddress.slice(
+            -4
+          )}`;
+        }
+      }
+
+      console.log(`Market ${marketAddress}:`, {
+        metadataStr,
+        parsedMetadata: metadata,
+        title,
+        polymarketId,
+      });
+
+      eventsList.push({
+        id: marketAddress,
+        title: title.trim(),
+        marketCloseTime: new Date(deadline),
+        odds: {
+          yes: yesOdds,
+          no: noOdds,
+        },
+        status,
+        polymarketUrl,
+      });
+    }
+
+    return eventsList;
+  }, [marketsData, marketAddresses]);
+
+  // Check if user is creator
+  const isCreator = useMemo(() => {
+    if (!community || !address) return false;
+    return community.creator.toLowerCase() === address.toLowerCase();
+  }, [community, address]);
+
+  // Check if user is member
+  const { data: isCommunityMember } = useContractRead({
+    address: CONTRACT_ADDRESSES.PredictionHub,
+    abi: PredictionHubABI as Abi,
+    functionName: "isCommunityMember",
+    args: address ? [BigInt(communityId), address] : undefined,
+    query: {
+      enabled: communityId > 0 && !!address,
     },
-    {
-      id: "2",
-      title: "Ethereum ETF approval in Q1 2024?",
-      description: "Will the SEC approve spot Ethereum ETFs in the first quarter?",
-      marketCloseTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
-      odds: { yes: 0.42, no: 0.58 },
-      status: "open" as const,
-      polymarketUrl: "https://polymarket.com",
-    },
-    {
-      id: "3",
-      title: "Solana network downtime in next 30 days?",
-      description: "Will Solana experience any network outages in the coming month?",
-      marketCloseTime: new Date(Date.now() + 1.5 * 60 * 60 * 1000), // 1.5 hours from now
-      odds: { yes: 0.28, no: 0.72 },
-      status: "closing-soon" as const,
-      polymarketUrl: "https://polymarket.com",
-    },
-  ]);
+  });
+
+  // Update member state when contract data changes
+  useEffect(() => {
+    if (isCommunityMember !== undefined) {
+      setIsMember(isCommunityMember as boolean);
+    }
+  }, [isCommunityMember]);
 
   const handleJoinLeave = () => {
     if (isMember) {
@@ -82,10 +373,62 @@ export default function CommunityDetailPage() {
 
   const handleEventSuggestionSuccess = () => {
     setIsSuggestEventOpen(false);
-    // In a real implementation, this would fetch updated events from the API
-    // For now, we'll just show a message that the event was added
-    // The events list would be refreshed via API call in production
+    // Trigger refresh by updating key
+    setRefreshKey((prev) => prev + 1);
+    toast.success("Market created! Refreshing events...");
   };
+
+  const isLoading =
+    isLoadingCommunity || isLoadingMarkets || isLoadingMarketData;
+
+  // Show loading state
+  if (isLoading && !community && !communityError) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <div className="container px-4 py-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error or not found state
+  if (communityError || (!community && !isLoading)) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <div className="container px-4 py-8">
+          <div className="rounded-xl border border-border bg-card p-12 text-center">
+            <p className="text-lg text-muted-foreground">
+              {communityError
+                ? `Error: ${communityError.message || "Community not found"}`
+                : "Community not found"}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Community ID: {id || "N/A"}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // If still loading but we have community data, show it (optimistic)
+  if (!community) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <div className="container px-4 py-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -96,12 +439,20 @@ export default function CommunityDetailPage() {
         <div className="mb-8 rounded-xl border border-border bg-card p-6 shadow-card md:p-8">
           <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex-1">
-              <h1 className="mb-2 text-3xl font-bold md:text-4xl">{community.name}</h1>
-              <p className="text-lg text-muted-foreground">{community.description}</p>
+              <h1 className="mb-2 text-3xl font-bold md:text-4xl">
+                {community.name}
+              </h1>
+              <p className="text-lg text-muted-foreground">
+                {community.description}
+              </p>
             </div>
             <Button
               onClick={handleJoinLeave}
-              className={isMember ? "bg-muted hover:bg-muted/80" : "gradient-primary shadow-glow"}
+              className={
+                isMember
+                  ? "bg-muted hover:bg-muted/80"
+                  : "gradient-primary shadow-glow"
+              }
             >
               {isMember ? (
                 <>
@@ -120,10 +471,12 @@ export default function CommunityDetailPage() {
           <div className="flex items-center gap-6 text-muted-foreground">
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              <span className="font-medium">{community.memberCount} members</span>
+              <span className="font-medium">
+                {community.memberCount} members
+              </span>
             </div>
             <div>
-              <span className="font-medium">{community.activeEvents} active events</span>
+              <span className="font-medium">{events.length} active events</span>
             </div>
           </div>
         </div>
@@ -164,28 +517,36 @@ export default function CommunityDetailPage() {
           </div>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => (
-            <EventCard key={event.id} {...event} />
-          ))}
-        </div>
-
-        {events.length === 0 && (
-          <div className="rounded-xl border border-border bg-card p-12 text-center">
-            <p className="text-lg text-muted-foreground">
-              No active events yet
-            </p>
-            {isCreator && (
-              <Button
-                className="mt-4"
-                variant="outline"
-                onClick={() => setIsSuggestEventOpen(true)}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Be the first to suggest an event
-              </Button>
-            )}
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
+        ) : (
+          <>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {events.map((event) => (
+                <EventCard key={event.id} {...event} />
+              ))}
+            </div>
+
+            {events.length === 0 && (
+              <div className="rounded-xl border border-border bg-card p-12 text-center">
+                <p className="text-lg text-muted-foreground">
+                  No active events yet
+                </p>
+                {isCreator && (
+                  <Button
+                    className="mt-4"
+                    variant="outline"
+                    onClick={() => setIsSuggestEventOpen(true)}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Be the first to suggest an event
+                  </Button>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* Suggest Event Dialog */}
@@ -215,4 +576,3 @@ export default function CommunityDetailPage() {
     </div>
   );
 }
-

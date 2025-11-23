@@ -11,8 +11,12 @@ import {
   isValidPolymarketUrl,
   fetchEventBySlug,
 } from "@/lib/polymarket";
-import { submitEventSuggestion } from "@/lib/api";
 import { toast } from "sonner";
+import { useAccount, useWaitForTransactionReceipt } from "wagmi";
+import { useContractWrite } from "@/hooks";
+import { CONTRACT_ADDRESSES } from "@/lib";
+import PredictionHubABI from "@/lib/abis/PredictionHub.json";
+import type { Abi } from "viem";
 
 interface EventSuggestionFormProps {
   communityId: string;
@@ -22,25 +26,56 @@ interface EventSuggestionFormProps {
 
 const MAX_TITLE_LENGTH = 100;
 const MAX_DESCRIPTION_LENGTH = 500;
+const DEFAULT_STAKING_DAYS = 7;
+const MIN_STAKING_DAYS = 1;
+const MAX_STAKING_DAYS = 90;
 
 export const EventSuggestionForm = ({
   communityId,
   onSuccess,
   onCancel,
 }: EventSuggestionFormProps) => {
+  const { address, isConnected } = useAccount();
   const [polymarketUrl, setPolymarketUrl] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [polymarketMarketId, setPolymarketMarketId] = useState("");
+  const [stakingDays, setStakingDays] = useState(
+    DEFAULT_STAKING_DAYS.toString()
+  );
 
   const [isFetchingEvent, setIsFetchingEvent] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [eventFetched, setEventFetched] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [hasShownSuccess, setHasShownSuccess] = useState(false);
+  const [hasShownError, setHasShownError] = useState(false);
 
   const [urlError, setUrlError] = useState<string | null>(null);
   const [titleError, setTitleError] = useState<string | null>(null);
   const [descriptionError, setDescriptionError] = useState<string | null>(null);
+  const [stakingDaysError, setStakingDaysError] = useState<string | null>(null);
+
+  // Contract write hook
+  const {
+    write,
+    hash: txHash,
+    isLoading: isPending,
+    error: writeError,
+    canWrite,
+    reset,
+  } = useContractWrite({
+    address: CONTRACT_ADDRESSES.PredictionHub,
+    abi: PredictionHubABI as Abi,
+    functionName: "createMarket",
+  });
+
+  const {
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+    error: txError,
+  } = useWaitForTransactionReceipt({
+    hash: txHash,
+  });
 
   // Auto-fetch event data when URL is pasted and valid
   useEffect(() => {
@@ -148,6 +183,21 @@ export const EventSuggestionForm = ({
       setDescriptionError(null);
     }
 
+    // Validate staking days
+    const days = parseInt(stakingDays, 10);
+    if (!stakingDays.trim() || isNaN(days)) {
+      setStakingDaysError("Staking deadline days is required");
+      isValid = false;
+    } else if (days < MIN_STAKING_DAYS) {
+      setStakingDaysError(`Must be at least ${MIN_STAKING_DAYS} day`);
+      isValid = false;
+    } else if (days > MAX_STAKING_DAYS) {
+      setStakingDaysError(`Must be at most ${MAX_STAKING_DAYS} days`);
+      isValid = false;
+    } else {
+      setStakingDaysError(null);
+    }
+
     return isValid;
   };
 
@@ -158,50 +208,115 @@ export const EventSuggestionForm = ({
       return;
     }
 
-    setIsSubmitting(true);
+    if (!isConnected || !address) {
+      toast.error("Please connect your wallet");
+      return;
+    }
+
+    if (!canWrite) {
+      toast.error("Wallet client not available");
+      return;
+    }
+
+    setHasShownSuccess(false);
+    setHasShownError(false);
 
     try {
-      // TODO: Change to smart contract call
-      // await submitEventSuggestion({
-      //   communityId,
-      //   title: title.trim(),
-      //   description: description.trim(),
-      //   polymarketMarketId,
-      //   polymarketUrl: polymarketUrl.trim(),
-      // });
+      // Convert communityId to number
+      const communityIdNum = parseInt(communityId, 10);
+      if (isNaN(communityIdNum)) {
+        toast.error("Invalid community ID");
+        return;
+      }
 
-      toast.success("Event suggestion submitted successfully!");
+      // Calculate staking deadline (current timestamp + days in seconds)
+      const days = parseInt(stakingDays, 10);
+      const stakingDeadline = BigInt(
+        Math.floor(Date.now() / 1000) + days * 24 * 60 * 60
+      );
+
+      // Create metadata JSON string (only title and polymarketUrl)
+      const metadata = JSON.stringify({
+        title: title.trim(),
+        polymarketUrl: polymarketUrl.trim(),
+      });
+
+      toast.loading("Creating market...", { id: "create-market" });
+
+      // Call createMarket contract function
+      write?.({
+        args: [
+          BigInt(communityIdNum),
+          polymarketMarketId || extractSlugFromUrl(polymarketUrl) || "",
+          metadata,
+          stakingDeadline,
+        ],
+      });
+    } catch (error: any) {
+      console.error("Create market error:", error);
+      const errorMsg = error?.message || "Failed to create market";
+      toast.error(errorMsg, { id: "create-market" });
+      setHasShownError(true);
+    }
+  };
+
+  // Handle success
+  useEffect(() => {
+    if (isConfirmed && txHash && !hasShownSuccess) {
+      setHasShownSuccess(true);
+      toast.success("Market created successfully!", {
+        id: "create-market",
+      });
 
       // Reset form
       setPolymarketUrl("");
       setTitle("");
       setDescription("");
       setPolymarketMarketId("");
+      setStakingDays(DEFAULT_STAKING_DAYS.toString());
       setEventFetched(false);
       setFetchError(null);
       setUrlError(null);
       setTitleError(null);
       setDescriptionError(null);
+      setStakingDaysError(null);
+      reset();
 
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to submit event suggestion. Please try again."
-      );
-    } finally {
-      setIsSubmitting(false);
     }
-  };
+  }, [isConfirmed, txHash, hasShownSuccess, onSuccess, reset]);
+
+  // Handle transaction error
+  useEffect(() => {
+    if (txError && txHash && !hasShownError) {
+      setHasShownError(true);
+      toast.error(txError.message || "Transaction failed", {
+        id: "create-market",
+      });
+      reset();
+    }
+  }, [txError, txHash, hasShownError, reset]);
+
+  // Handle write error
+  useEffect(() => {
+    if (writeError && !txHash && !hasShownError) {
+      setHasShownError(true);
+      toast.error(writeError.message || "Failed to create market", {
+        id: "create-market",
+      });
+      reset();
+    }
+  }, [writeError, txHash, hasShownError, reset]);
 
   const handleCancel = () => {
     if (onCancel) {
       onCancel();
     }
   };
+
+  const isLoading = isPending || (!!txHash && (isConfirming || !isConfirmed));
 
   const isFormValid =
     polymarketUrl.trim() &&
@@ -211,7 +326,11 @@ export const EventSuggestionForm = ({
     title.trim() &&
     title.length <= MAX_TITLE_LENGTH &&
     description.trim() &&
-    description.length <= MAX_DESCRIPTION_LENGTH;
+    description.length <= MAX_DESCRIPTION_LENGTH &&
+    stakingDays.trim() &&
+    !isNaN(parseInt(stakingDays, 10)) &&
+    parseInt(stakingDays, 10) >= MIN_STAKING_DAYS &&
+    parseInt(stakingDays, 10) <= MAX_STAKING_DAYS;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -231,7 +350,7 @@ export const EventSuggestionForm = ({
               setUrlError(null);
             }}
             className={urlError ? "border-destructive" : ""}
-            disabled={isSubmitting}
+            disabled={isLoading}
           />
           {isFetchingEvent && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -280,7 +399,7 @@ export const EventSuggestionForm = ({
           }}
           maxLength={MAX_TITLE_LENGTH}
           className={titleError ? "border-destructive" : ""}
-          disabled={isSubmitting || isFetchingEvent}
+          disabled={isLoading || isFetchingEvent}
         />
         <div className="flex items-center justify-between">
           <div className="flex-1">
@@ -310,7 +429,7 @@ export const EventSuggestionForm = ({
           maxLength={MAX_DESCRIPTION_LENGTH}
           rows={4}
           className={descriptionError ? "border-destructive" : ""}
-          disabled={isSubmitting || isFetchingEvent}
+          disabled={isLoading || isFetchingEvent}
         />
         <div className="flex items-center justify-between">
           <div className="flex-1">
@@ -324,28 +443,56 @@ export const EventSuggestionForm = ({
         </div>
       </div>
 
+      {/* Staking Deadline Field */}
+      <div className="space-y-2">
+        <Label htmlFor="staking-days">
+          Staking Deadline (Days) <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id="staking-days"
+          type="number"
+          placeholder={`${DEFAULT_STAKING_DAYS} days`}
+          value={stakingDays}
+          onChange={(e) => {
+            setStakingDays(e.target.value);
+            setStakingDaysError(null);
+          }}
+          min={MIN_STAKING_DAYS}
+          max={MAX_STAKING_DAYS}
+          className={stakingDaysError ? "border-destructive" : ""}
+          disabled={isLoading || isFetchingEvent}
+        />
+        {stakingDaysError && (
+          <p className="text-sm text-destructive">{stakingDaysError}</p>
+        )}
+        <p className="text-xs text-muted-foreground">
+          Number of days until the staking deadline (between {MIN_STAKING_DAYS}{" "}
+          and {MAX_STAKING_DAYS} days)
+        </p>
+      </div>
+
       {/* Form Actions */}
       <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
         <Button
           type="button"
           variant="outline"
           onClick={handleCancel}
-          disabled={isSubmitting}
+          disabled={isLoading}
         >
           Cancel
         </Button>
         <Button
           type="submit"
-          disabled={!isFormValid || isSubmitting || isFetchingEvent}
+          disabled={!isFormValid || isLoading || isFetchingEvent || !canWrite}
           className="gradient-primary shadow-glow"
         >
-          {isSubmitting ? (
+          {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Submitting event suggestion...
+              {isConfirming ? "Confirming..." : "Creating market..."}
             </>
           ) : (
-            "Submit Event Suggestion"
+            "Create Market"
           )}
         </Button>
       </div>
