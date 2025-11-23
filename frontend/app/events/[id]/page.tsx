@@ -6,42 +6,249 @@ import { BettingInterface } from "@/components/BettingInterface";
 import { CountdownTimer } from "@/components/CountdownTimer";
 import { ChatContainer } from "@/components/ChatContainer";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, MessageSquare } from "lucide-react";
+import { ExternalLink, MessageSquare, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useMemo } from "react";
+import { useContractRead, useContractReads } from "@/hooks";
+import { CONTRACT_ADDRESSES } from "@/lib";
+import MarketABI from "@/lib/abis/Market.json";
+import PredictionHubABI from "@/lib/abis/PredictionHub.json";
+import { formatEther } from "viem";
+import type { Abi, Address } from "viem";
 
 export default function EventDetailPage() {
   const params = useParams();
-  const id = params.id as string;
+  const marketAddress = params.id as string;
 
-  // Mock event data
-  const event = {
-    id: id || "1",
-    title: "Will Bitcoin reach $100k by end of 2024?",
-    description:
-      "This market predicts whether Bitcoin (BTC) will reach or exceed $100,000 USD before December 31st, 2024, 23:59:59 UTC. The resolution will be based on data from major exchanges including Coinbase, Binance, and Kraken. If BTC reaches $100k on any of these exchanges for at least 1 minute, this resolves to YES.",
-    marketCloseTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
-    executionTime: new Date(
-      Date.now() + 2 * 24 * 60 * 60 * 1000 - 2 * 60 * 60 * 1000
-    ),
-    odds: { yes: 0.65, no: 0.35 },
-    communityId: "1", // Mock community ID - in production this would come from the event data
-    communityName: "Crypto Predictions",
-    polymarketUrl: "https://polymarket.com",
-    totalBets: 127,
-    totalVolume: 45230,
-    status: "open" as "open" | "closing-soon" | "closed" | "completed",
-  };
+  // Fetch market data from contract
+  const marketContracts = useMemo(
+    () =>
+      marketAddress && marketAddress.startsWith("0x")
+        ? [
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "metadata" as const,
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "stakingDeadline" as const,
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "state" as const,
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "getTotalPool" as const,
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "getPoolInfo" as const,
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "polymarketId" as const,
+            },
+            {
+              address: marketAddress as Address,
+              abi: MarketABI as Abi,
+              functionName: "hub" as const,
+            },
+          ]
+        : [],
+    [marketAddress]
+  );
 
-  const isExecutionWindow = new Date() < event.executionTime;
-  let isCompleted = event.status === "completed" || event.status === "closed";
-  // Temporary hack to test completed state
-  if (id === "3") {
-    isCompleted = true;
-    event.status = "completed";
-  }
+  const { data: marketData, isLoading: isLoadingMarket } = useContractReads({
+    contracts: marketContracts,
+    query: {
+      enabled: marketContracts.length > 0,
+      refetchInterval: 5000, // Refetch every 5 seconds
+    },
+  });
 
-  const getStatusBadge = () => {
-    switch (event.status) {
+  // Get community ID from hub contract
+  const { data: hubAddress } = useContractRead({
+    address: marketAddress as Address,
+    abi: MarketABI as Abi,
+    functionName: "hub",
+    query: {
+      enabled: !!marketAddress && marketAddress.startsWith("0x"),
+    },
+  });
+
+  const { data: communityId } = useContractRead({
+    address: hubAddress as Address,
+    abi: PredictionHubABI as Abi,
+    functionName: "getMarketCommunity",
+    args: marketAddress ? [marketAddress as Address] : undefined,
+    query: {
+      enabled: !!hubAddress && !!marketAddress,
+    },
+  });
+
+  // Get community data
+  const { data: communityData } = useContractRead({
+    address: hubAddress as Address,
+    abi: PredictionHubABI as Abi,
+    functionName: "getCommunity",
+    args: communityId ? [BigInt(Number(communityId))] : undefined,
+    query: {
+      enabled: !!hubAddress && communityId !== undefined,
+    },
+  });
+
+  // Parse market data
+  const marketInfo = useMemo(() => {
+    if (!marketData || marketData.length < 7) return null;
+
+    const [
+      metadataResult,
+      stakingDeadlineResult,
+      stateResult,
+      totalPoolResult,
+      poolInfoResult,
+      polymarketIdResult,
+      hubResult,
+    ] = marketData;
+
+    if (
+      metadataResult?.status !== "success" ||
+      stakingDeadlineResult?.status !== "success" ||
+      stateResult?.status !== "success" ||
+      totalPoolResult?.status !== "success" ||
+      poolInfoResult?.status !== "success" ||
+      polymarketIdResult?.status !== "success"
+    ) {
+      return null;
+    }
+
+    const metadataStr = metadataResult.result as string;
+    const stakingDeadline = stakingDeadlineResult.result as bigint;
+    const state = stateResult.result as number;
+    const totalPool = totalPoolResult.result as bigint;
+    const poolInfo = poolInfoResult.result as [bigint, bigint, bigint];
+    const polymarketId = polymarketIdResult.result as string;
+
+    // Parse metadata
+    let metadata: { title?: string; polymarketUrl?: string } = {};
+    if (metadataStr && metadataStr.trim() !== "") {
+      try {
+        const parsed = JSON.parse(metadataStr);
+        if (typeof parsed === "object" && parsed !== null) {
+          metadata = parsed;
+        } else {
+          metadata = { title: String(parsed) };
+        }
+      } catch (e) {
+        metadata = { title: metadataStr };
+      }
+    }
+
+    // Calculate execution window (2 hours before staking deadline)
+    const deadlineTimestamp = Number(stakingDeadline) * 1000;
+    const executionWindowTime = new Date(
+      deadlineTimestamp - 2 * 60 * 60 * 1000
+    );
+
+    // Calculate total bets (estimate: count non-zero stakes)
+    // Since we can't easily count unique stakers, we'll use an estimate
+    // based on the assumption that each bet is at least 0.01 CHZ
+    const totalBetsEstimate = Math.max(
+      1,
+      Math.floor(Number(formatEther(totalPool)) / 0.01)
+    );
+
+    // Calculate odds
+    const [totalA, totalB, totalDraw] = poolInfo;
+    const totalPoolAmount = totalA + totalB + totalDraw;
+    const yesOdds =
+      totalPoolAmount > BigInt(0)
+        ? Number(totalA) / Number(totalPoolAmount)
+        : 0.5;
+    const noOdds =
+      totalPoolAmount > BigInt(0)
+        ? Number(totalB) / Number(totalPoolAmount)
+        : 0.5;
+
+    // Determine status
+    const now = Date.now();
+    const deadline = deadlineTimestamp;
+    const hoursUntilDeadline = (deadline - now) / (1000 * 60 * 60);
+
+    let status: "open" | "closing-soon" | "closed" | "completed" = "open";
+    if (state === 0 && hoursUntilDeadline < 24 && hoursUntilDeadline > 0) {
+      status = "closing-soon";
+    } else if (state > 0 || hoursUntilDeadline <= 0) {
+      if (state === 5) {
+        status = "completed";
+      } else {
+        status = "closed";
+      }
+    }
+
+    // Build Polymarket URL
+    const polymarketUrl =
+      metadata.polymarketUrl || `https://polymarket.com/event/${polymarketId}`;
+
+    // Get title with fallback
+    let title = metadata.title;
+    if (!title || title.trim() === "") {
+      if (polymarketId && polymarketId.trim() !== "") {
+        title = polymarketId
+          .split("-")
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+      } else {
+        title = `Market ${marketAddress.slice(0, 6)}...${marketAddress.slice(
+          -4
+        )}`;
+      }
+    }
+
+    return {
+      title,
+      marketCloseTime: new Date(deadlineTimestamp),
+      executionTime: executionWindowTime,
+      odds: { yes: yesOdds, no: noOdds },
+      totalBets: totalBetsEstimate,
+      totalVolume: Number(formatEther(totalPool)),
+      status,
+      polymarketUrl,
+      marketState: state,
+      stakingDeadline: Number(stakingDeadline),
+    };
+  }, [marketData, marketAddress]);
+
+  // Parse community data
+  const communityInfo = useMemo(() => {
+    if (!communityData || !Array.isArray(communityData)) return null;
+
+    let name: string;
+    if (Array.isArray(communityData)) {
+      name = communityData[1] as string;
+    } else {
+      name = (communityData as any).name || "";
+    }
+
+    return {
+      id: communityId?.toString() || "0",
+      name: name || "Unknown Community",
+    };
+  }, [communityData, communityId]);
+
+  const isExecutionWindow = marketInfo && new Date() < marketInfo.executionTime;
+  const isCompleted =
+    marketInfo?.status === "completed" || marketInfo?.status === "closed";
+
+  const getStatusBadge = (status?: string) => {
+    switch (status) {
       case "open":
         return (
           <Badge className="bg-success/20 text-success border-success/30">
@@ -65,6 +272,19 @@ export default function EventDetailPage() {
     }
   };
 
+  if (isLoadingMarket || !marketInfo) {
+    return (
+      <div className="min-h-screen">
+        <Header />
+        <div className="container px-4 py-8">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen">
       <Header />
@@ -74,13 +294,14 @@ export default function EventDetailPage() {
           {/* Event Header */}
           <div className="mb-6">
             <div className="mb-4 flex items-center gap-3">
-              <Badge variant="outline">{event.communityName}</Badge>
-              {getStatusBadge()}
+              <Badge variant="outline">
+                {communityInfo?.name || "Community"}
+              </Badge>
+              {getStatusBadge(marketInfo.status)}
             </div>
             <h1 className="mb-4 text-3xl font-bold md:text-4xl">
-              {event.title}
+              {marketInfo.title}
             </h1>
-            <p className="text-lg text-muted-foreground">{event.description}</p>
           </div>
 
           {/* Countdown Section */}
@@ -92,7 +313,7 @@ export default function EventDetailPage() {
                     Market Closes
                   </div>
                   <CountdownTimer
-                    targetTime={event.marketCloseTime}
+                    targetTime={marketInfo.marketCloseTime}
                     size="lg"
                   />
                 </div>
@@ -100,7 +321,10 @@ export default function EventDetailPage() {
                   <div className="mb-2 text-sm font-medium text-muted-foreground">
                     Execution Window Closes
                   </div>
-                  <CountdownTimer targetTime={event.executionTime} size="lg" />
+                  <CountdownTimer
+                    targetTime={marketInfo.executionTime}
+                    size="lg"
+                  />
                 </div>
               </div>
 
@@ -109,19 +333,25 @@ export default function EventDetailPage() {
                   <div className="text-sm text-muted-foreground">
                     Total Bets
                   </div>
-                  <div className="text-2xl font-bold">{event.totalBets}</div>
+                  <div className="text-2xl font-bold">
+                    {marketInfo.totalBets}
+                  </div>
                 </div>
                 <div>
                   <div className="text-sm text-muted-foreground">
                     Total Volume
                   </div>
                   <div className="text-2xl font-bold">
-                    ${event.totalVolume.toLocaleString()}
+                    {marketInfo.totalVolume.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    CHZ
                   </div>
                 </div>
                 <Button variant="outline" asChild>
                   <a
-                    href={event.polymarketUrl}
+                    href={marketInfo.polymarketUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
@@ -134,15 +364,19 @@ export default function EventDetailPage() {
           )}
 
           {/* Betting Interface */}
-          {!isCompleted && (
+          {!isCompleted && marketInfo && (
             <div className="mb-8 rounded-xl border border-border bg-card p-6 shadow-card">
               <h2 className="mb-6 text-2xl font-bold">Place Your Bet</h2>
               <BettingInterface
-                eventId={event.id} // Market address
-                currentOdds={event.odds} // Fallback odds (will be overridden by contract data)
-                isExecutionWindow={isExecutionWindow}
-                marketState={event.status === "open" ? 0 : event.status === "closed" ? 1 : 0}
-                stakingDeadline={Math.floor(event.marketCloseTime.getTime() / 1000)}
+                eventId={marketAddress}
+                currentOdds={marketInfo.odds}
+                isExecutionWindow={isExecutionWindow || false}
+                {...(marketInfo.marketState !== undefined && {
+                  marketState: marketInfo.marketState,
+                })}
+                {...(marketInfo.stakingDeadline !== undefined && {
+                  stakingDeadline: marketInfo.stakingDeadline,
+                })}
               />
             </div>
           )}
@@ -158,7 +392,10 @@ export default function EventDetailPage() {
 
           {/* Chat/Discussion Section */}
           <div className="mb-8">
-            <ChatContainer eventId={event.id} communityId={event.communityId} />
+            <ChatContainer
+              eventId={marketAddress}
+              communityId={communityInfo?.id || "0"}
+            />
           </div>
 
           {/* Info Box */}
