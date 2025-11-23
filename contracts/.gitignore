@@ -12,3 +12,6 @@ docs/
 
 # Dotenv file
 .env
+
+# Seed wallet private keys (NEVER COMMIT)
+.env.seed
