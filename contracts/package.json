@@ -11,7 +11,10 @@
     "extract-abi": "node script/extractABI.js",
     "deploy:local": "forge script script/Deploy.s.sol --rpc-url http://localhost:8545 --broadcast",
     "deploy:testnet": "forge script script/Deploy.s.sol --rpc-url https://spicy-rpc.chiliz.com --broadcast --verify",
-    "build-and-extract": "npm run build && npm run extract-abi"
+    "build-and-extract": "npm run build && npm run extract-abi",
+    "cli": "node cli.js",
+    "anvil": "node cli.js run",
+    "dev:setup": "node cli.js deploy && node cli.js register 'Dev Creator' 'ipfs://dev'"
   },
   "keywords": [
     "solidity",
