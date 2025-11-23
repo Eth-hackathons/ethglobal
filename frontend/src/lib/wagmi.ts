@@ -1,5 +1,11 @@
 import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { createPublicClient, createWalletClient, http, type PublicClient, type WalletClient } from "viem";
+import {
+  createPublicClient,
+  createWalletClient,
+  http,
+  type PublicClient,
+  type WalletClient,
+} from "viem";
 import { spicyTestnet } from "./chains";
 
 // Re-export chain for convenience
@@ -35,7 +41,7 @@ export function getPublicClient(): PublicClient {
  * Get a wallet client instance
  * Note: This requires a browser environment with a wallet provider
  * For write operations in React components, use wagmi hooks instead
- * 
+ *
  * In practice, wagmi hooks handle wallet clients automatically.
  * This function is provided for edge cases where you need direct access.
  */
@@ -43,7 +49,7 @@ export function getWalletClient(): WalletClient | null {
   if (typeof window === "undefined") {
     return null;
   }
-  
+
   // Note: In most cases, use wagmi hooks (useWriteContract, useWalletClient) instead
   // This is a fallback for programmatic wallet operations
   try {
