@@ -1,9 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.13;
 
+// Interface for PredictionHub to check community membership
+interface IPredictionHub {
+    function isCommunityMember(uint256 communityId, address user) external view returns (bool);
+    function getMarketCommunity(address marketAddress) external view returns (uint256);
+}
+
 /**
  * @title Market
- * @notice Individual prediction market contract deployed by creators
+ * @notice Individual prediction market contract deployed by creators within communities
  * @dev Handles staking, mock bridging, and reward distribution for 3-outcome markets
  */
 contract Market {
@@ -83,12 +89,20 @@ contract Market {
     }
 
     /**
-     * @notice Stake CHZ on a specific outcome
+     * @notice Stake CHZ on a specific outcome (community members only)
      * @param outcome The outcome to stake on (A, B, or Draw)
      */
     function stake(Outcome outcome) external payable inState(MarketState.Open) {
         require(block.timestamp < stakingDeadline, "Market: staking period ended");
         require(msg.value > 0, "Market: must stake non-zero amount");
+        
+        // Check if user is a member of the market's community
+        IPredictionHub hubContract = IPredictionHub(hub);
+        uint256 communityId = hubContract.getMarketCommunity(address(this));
+        require(
+            hubContract.isCommunityMember(communityId, msg.sender),
+            "Market: must be community member to stake"
+        );
         
         stakes[outcome][msg.sender] += msg.value;
         totalStakes[outcome] += msg.value;

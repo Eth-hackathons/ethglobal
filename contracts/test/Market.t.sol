@@ -36,14 +36,29 @@ contract MarketTest is Test {
         vm.prank(creator);
         hub.registerCreator("Test Creator", "ipfs://test");
         
+        // Create community
+        vm.prank(creator);
+        uint256 communityId = hub.createCommunity("Test Community", "Test Description", "ipfs://community");
+        
         // Create market
         vm.prank(creator);
         address marketAddress = hub.createMarket(
+            communityId,
             "polymarket-123",
             "Will ETH reach $5k?",
             block.timestamp + 7 days
         );
         market = Market(payable(marketAddress));
+        
+        // Users join community to be able to stake
+        vm.prank(user1);
+        hub.joinCommunity(communityId);
+        
+        vm.prank(user2);
+        hub.joinCommunity(communityId);
+        
+        vm.prank(user3);
+        hub.joinCommunity(communityId);
     }
     
     function testInitialState() public view {

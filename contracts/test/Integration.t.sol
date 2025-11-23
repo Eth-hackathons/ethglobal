@@ -48,10 +48,34 @@ contract IntegrationTest is Test {
         assertEq(marketCount, 0);
         console.log("Creator registered:", name);
         
+        // === PHASE 1.5: COMMUNITY CREATION ===
+        console.log("\n=== Phase 1.5: Community Creation ===");
+        vm.prank(creator);
+        uint256 communityId = hub.createCommunity(
+            "Sports Betting Community",
+            "Community for sports predictions",
+            "ipfs://community-profile"
+        );
+        console.log("Community created with ID:", communityId);
+        
+        // Users join the community
+        vm.prank(alice);
+        hub.joinCommunity(communityId);
+        console.log("Alice joined the community");
+        
+        vm.prank(bob);
+        hub.joinCommunity(communityId);
+        console.log("Bob joined the community");
+        
+        vm.prank(charlie);
+        hub.joinCommunity(communityId);
+        console.log("Charlie joined the community");
+        
         // === PHASE 2: MARKET CREATION ===
         console.log("\n=== Phase 2: Market Creation ===");
         vm.prank(creator);
         address marketAddr = hub.createMarket(
+            communityId,
             "polymarket-football-match-123",
             "Champions League Final: Will Real Madrid win?",
             block.timestamp + 7 days
@@ -143,13 +167,15 @@ contract IntegrationTest is Test {
         
         // === PHASE 7: PLATFORM STATS ===
         console.log("\n=== Phase 7: Platform Statistics ===");
-        (uint256 totalCreators, uint256 totalMarkets, uint256 tvl) = hub.getHubStats();
+        (uint256 totalCreators, uint256 totalMarkets, uint256 totalCommunities, uint256 tvl) = hub.getHubStats();
         console.log("Total Creators:", totalCreators);
         console.log("Total Markets:", totalMarkets);
+        console.log("Total Communities:", totalCommunities);
         console.log("TVL:", tvl / 1 ether, "ETH");
         
         assertEq(totalCreators, 1);
         assertEq(totalMarkets, 1);
+        assertEq(totalCommunities, 1);
     }
     
     /**
@@ -161,7 +187,17 @@ contract IntegrationTest is Test {
         hub.registerCreator("Crypto Analyst", "ipfs://analyst");
         
         vm.prank(creator);
+        uint256 communityId = hub.createCommunity("Crypto Community", "Crypto predictions", "ipfs://crypto");
+        
+        vm.prank(alice);
+        hub.joinCommunity(communityId);
+        
+        vm.prank(bob);
+        hub.joinCommunity(communityId);
+        
+        vm.prank(creator);
         address marketAddr = hub.createMarket(
+            communityId,
             "polymarket-btc-price",
             "Will BTC reach $100k?",
             block.timestamp + 30 days
@@ -206,12 +242,19 @@ contract IntegrationTest is Test {
         vm.prank(creator2);
         hub.registerCreator("Creator Two", "ipfs://c2");
         
-        // Each creates a market
+        // Create communities
         vm.prank(creator);
-        address market1 = hub.createMarket("pm-1", "Market 1", block.timestamp + 7 days);
+        uint256 communityId1 = hub.createCommunity("Community 1", "Description", "ipfs://c1");
         
         vm.prank(creator2);
-        address market2 = hub.createMarket("pm-2", "Market 2", block.timestamp + 7 days);
+        uint256 communityId2 = hub.createCommunity("Community 2", "Description", "ipfs://c2");
+        
+        // Each creates a market
+        vm.prank(creator);
+        address market1 = hub.createMarket(communityId1, "pm-1", "Market 1", block.timestamp + 7 days);
+        
+        vm.prank(creator2);
+        address market2 = hub.createMarket(communityId2, "pm-2", "Market 2", block.timestamp + 7 days);
         
         // Verify separation
         address[] memory creator1Markets = hub.getCreatorMarkets(creator);
@@ -239,7 +282,21 @@ contract IntegrationTest is Test {
         hub.registerCreator("Sports Expert", "ipfs://sports");
         
         vm.prank(creator);
+        uint256 communityId = hub.createCommunity("Sports Community", "Description", "ipfs://sports");
+        
+        // Users join community
+        vm.prank(alice);
+        hub.joinCommunity(communityId);
+        
+        vm.prank(bob);
+        hub.joinCommunity(communityId);
+        
+        vm.prank(charlie);
+        hub.joinCommunity(communityId);
+        
+        vm.prank(creator);
         address marketAddr = hub.createMarket(
+            communityId,
             "polymarket-soccer",
             "Soccer Match: Team A vs Team B",
             block.timestamp + 3 days

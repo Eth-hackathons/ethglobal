@@ -73,10 +73,15 @@ contract PredictionHubTest is Test {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
         
+        // Create community
+        vm.prank(creator1);
+        uint256 communityId = hub.createCommunity("Test Community", "Description", "ipfs://community");
+        
         // Create market
         uint256 deadline = block.timestamp + 7 days;
         vm.prank(creator1);
         address marketAddress = hub.createMarket(
+            communityId,
             "polymarket-123",
             "Will ETH reach $5k?",
             deadline
@@ -99,6 +104,7 @@ contract PredictionHubTest is Test {
         vm.prank(user);
         vm.expectRevert("PredictionHub: not a registered creator");
         hub.createMarket(
+            0,
             "polymarket-123",
             "Will ETH reach $5k?",
             deadline
@@ -109,43 +115,55 @@ contract PredictionHubTest is Test {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
         
+        vm.prank(creator1);
+        uint256 communityId = hub.createCommunity("Test Community", "Description", "ipfs://community");
+        
         uint256 deadline = block.timestamp + 7 days;
         vm.prank(creator1);
         vm.expectRevert("PredictionHub: invalid polymarket ID");
-        hub.createMarket("", "metadata", deadline);
+        hub.createMarket(communityId, "", "metadata", deadline);
     }
     
     function testCannotCreateMarketWithPastDeadline() public {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
         
+        vm.prank(creator1);
+        uint256 communityId = hub.createCommunity("Test Community", "Description", "ipfs://community");
+        
         uint256 pastDeadline = 1; // Clearly in the past
         vm.prank(creator1);
         vm.expectRevert("PredictionHub: invalid deadline");
-        hub.createMarket("polymarket-123", "metadata", pastDeadline);
+        hub.createMarket(communityId, "polymarket-123", "metadata", pastDeadline);
     }
     
     function testCannotCreateMarketWithTooLongDuration() public {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
         
+        vm.prank(creator1);
+        uint256 communityId = hub.createCommunity("Test Community", "Description", "ipfs://community");
+        
         NetworkConfig.ChainConfig memory config = networkConfig.getActiveConfig();
         uint256 tooLongDeadline = block.timestamp + config.maxStakingDuration + 1 days;
         
         vm.prank(creator1);
         vm.expectRevert("PredictionHub: staking period too long");
-        hub.createMarket("polymarket-123", "metadata", tooLongDeadline);
+        hub.createMarket(communityId, "polymarket-123", "metadata", tooLongDeadline);
     }
     
     function testGetCreatorMarkets() public {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
         
+        vm.prank(creator1);
+        uint256 communityId = hub.createCommunity("Test Community", "Description", "ipfs://community");
+        
         // Create multiple markets
         vm.startPrank(creator1);
-        address market1 = hub.createMarket("pm-1", "Market 1", block.timestamp + 7 days);
-        address market2 = hub.createMarket("pm-2", "Market 2", block.timestamp + 14 days);
-        address market3 = hub.createMarket("pm-3", "Market 3", block.timestamp + 21 days);
+        address market1 = hub.createMarket(communityId, "pm-1", "Market 1", block.timestamp + 7 days);
+        address market2 = hub.createMarket(communityId, "pm-2", "Market 2", block.timestamp + 14 days);
+        address market3 = hub.createMarket(communityId, "pm-3", "Market 3", block.timestamp + 21 days);
         vm.stopPrank();
         
         address[] memory markets = hub.getCreatorMarkets(creator1);
@@ -173,11 +191,14 @@ contract PredictionHubTest is Test {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
         
+        vm.prank(creator1);
+        uint256 communityId = hub.createCommunity("Test Community", "Description", "ipfs://community");
+        
         (,,uint256 marketCountBefore,) = hub.getCreatorProfile(creator1);
         assertEq(marketCountBefore, 0);
         
         vm.prank(creator1);
-        hub.createMarket("pm-1", "Market 1", block.timestamp + 7 days);
+        hub.createMarket(communityId, "pm-1", "Market 1", block.timestamp + 7 days);
         
         (,,uint256 marketCountAfter,) = hub.getCreatorProfile(creator1);
         assertEq(marketCountAfter, 1);
@@ -186,15 +207,19 @@ contract PredictionHubTest is Test {
     function testGetAllMarkets() public {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
+        vm.prank(creator1);
+        uint256 communityId1 = hub.createCommunity("Community 1", "Description", "ipfs://community1");
         
         vm.prank(creator2);
         hub.registerCreator("Creator Two", "ipfs://creator2");
+        vm.prank(creator2);
+        uint256 communityId2 = hub.createCommunity("Community 2", "Description", "ipfs://community2");
         
         vm.prank(creator1);
-        address market1 = hub.createMarket("pm-1", "Market 1", block.timestamp + 7 days);
+        address market1 = hub.createMarket(communityId1, "pm-1", "Market 1", block.timestamp + 7 days);
         
         vm.prank(creator2);
-        address market2 = hub.createMarket("pm-2", "Market 2", block.timestamp + 14 days);
+        address market2 = hub.createMarket(communityId2, "pm-2", "Market 2", block.timestamp + 14 days);
         
         address[] memory allMarkets = hub.getAllMarkets();
         assertEq(allMarkets.length, 2);
@@ -206,20 +231,22 @@ contract PredictionHubTest is Test {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
         
+        vm.prank(creator1);
+        uint256 communityId = hub.createCommunity("Test Community", "Description", "ipfs://community");
+        
         // Create two markets
         vm.startPrank(creator1);
-        address market1Addr = hub.createMarket("pm-1", "Market 1", block.timestamp + 7 days);
-        address market2Addr = hub.createMarket("pm-2", "Market 2", block.timestamp + 14 days);
+        address market1Addr = hub.createMarket(communityId, "pm-1", "Market 1", block.timestamp + 7 days);
+        address market2Addr = hub.createMarket(communityId, "pm-2", "Market 2", block.timestamp + 14 days);
         vm.stopPrank();
         
         // Both should be active initially
         address[] memory activeMarkets = hub.getActiveMarkets();
         assertEq(activeMarkets.length, 2);
         
-        // Lock one market
+        // Lock one market - creator needs to stake and trigger
         Market market1 = Market(payable(market1Addr));
-        vm.deal(user, 10 ether);
-        vm.prank(user);
+        vm.prank(creator1);
         market1.stake{value: 1 ether}(Market.Outcome.A);
         
         vm.prank(creator1);
@@ -235,19 +262,21 @@ contract PredictionHubTest is Test {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
         
+        vm.prank(creator1);
+        uint256 communityId = hub.createCommunity("Test Community", "Description", "ipfs://community");
+        
         vm.startPrank(creator1);
-        address market1Addr = hub.createMarket("pm-1", "Market 1", block.timestamp + 7 days);
-        address market2Addr = hub.createMarket("pm-2", "Market 2", block.timestamp + 14 days);
+        address market1Addr = hub.createMarket(communityId, "pm-1", "Market 1", block.timestamp + 7 days);
+        address market2Addr = hub.createMarket(communityId, "pm-2", "Market 2", block.timestamp + 14 days);
         vm.stopPrank();
         
         // Both in Open state
         address[] memory openMarkets = hub.getMarketsByState(Market.MarketState.Open);
         assertEq(openMarkets.length, 2);
         
-        // Trigger one
+        // Trigger one - creator stakes and triggers
         Market market1 = Market(payable(market1Addr));
-        vm.deal(user, 10 ether);
-        vm.prank(user);
+        vm.prank(creator1);
         market1.stake{value: 1 ether}(Market.Outcome.A);
         
         vm.prank(creator1);
@@ -267,19 +296,21 @@ contract PredictionHubTest is Test {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
         
+        vm.prank(creator1);
+        uint256 communityId = hub.createCommunity("Test Community", "Description", "ipfs://community");
+        
         vm.startPrank(creator1);
-        address market1Addr = hub.createMarket("pm-1", "Market 1", block.timestamp + 7 days);
-        address market2Addr = hub.createMarket("pm-2", "Market 2", block.timestamp + 14 days);
+        address market1Addr = hub.createMarket(communityId, "pm-1", "Market 1", block.timestamp + 7 days);
+        address market2Addr = hub.createMarket(communityId, "pm-2", "Market 2", block.timestamp + 14 days);
         vm.stopPrank();
         
         assertEq(hub.getTotalValueLocked(), 0);
         
-        // Stake in markets
-        vm.deal(user, 10 ether);
-        vm.prank(user);
+        // Stake in markets - creator can stake as they're auto-member
+        vm.prank(creator1);
         Market(payable(market1Addr)).stake{value: 2 ether}(Market.Outcome.A);
         
-        vm.prank(user);
+        vm.prank(creator1);
         Market(payable(market2Addr)).stake{value: 3 ether}(Market.Outcome.B);
         
         assertEq(hub.getTotalValueLocked(), 5 ether);
@@ -325,9 +356,10 @@ contract PredictionHubTest is Test {
     
     function testGetHubStats() public {
         // Initial stats
-        (uint256 totalCreators, uint256 totalMarkets, uint256 tvl) = hub.getHubStats();
+        (uint256 totalCreators, uint256 totalMarkets, uint256 totalCommunities, uint256 tvl) = hub.getHubStats();
         assertEq(totalCreators, 0);
         assertEq(totalMarkets, 0);
+        assertEq(totalCommunities, 0);
         assertEq(tvl, 0);
         
         // Register creators
@@ -337,40 +369,50 @@ contract PredictionHubTest is Test {
         vm.prank(creator2);
         hub.registerCreator("Creator Two", "ipfs://creator2");
         
-        // Create markets
+        // Create communities and markets
         vm.prank(creator1);
-        address market1 = hub.createMarket("pm-1", "Market 1", block.timestamp + 7 days);
+        uint256 communityId1 = hub.createCommunity("Community 1", "Description", "ipfs://community1");
         
         vm.prank(creator2);
-        address market2 = hub.createMarket("pm-2", "Market 2", block.timestamp + 14 days);
+        uint256 communityId2 = hub.createCommunity("Community 2", "Description", "ipfs://community2");
+        
+        vm.prank(creator1);
+        address market1 = hub.createMarket(communityId1, "pm-1", "Market 1", block.timestamp + 7 days);
+        
+        vm.prank(creator2);
+        address market2 = hub.createMarket(communityId2, "pm-2", "Market 2", block.timestamp + 14 days);
         
         // Add stakes
-        vm.deal(user, 10 ether);
-        vm.prank(user);
+        vm.prank(creator1);
         Market(payable(market1)).stake{value: 3 ether}(Market.Outcome.A);
         
-        vm.prank(user);
+        vm.prank(creator2);
         Market(payable(market2)).stake{value: 2 ether}(Market.Outcome.B);
         
         // Check stats
-        (totalCreators, totalMarkets, tvl) = hub.getHubStats();
+        (totalCreators, totalMarkets, totalCommunities, tvl) = hub.getHubStats();
         assertEq(totalCreators, 2);
         assertEq(totalMarkets, 2);
+        assertEq(totalCommunities, 2);
         assertEq(tvl, 5 ether);
     }
     
     function testMarketCreatedByCorrectCreator() public {
         vm.prank(creator1);
         hub.registerCreator("Creator One", "ipfs://creator1");
+        vm.prank(creator1);
+        uint256 communityId1 = hub.createCommunity("Community 1", "Description", "ipfs://community1");
         
         vm.prank(creator2);
         hub.registerCreator("Creator Two", "ipfs://creator2");
+        vm.prank(creator2);
+        uint256 communityId2 = hub.createCommunity("Community 2", "Description", "ipfs://community2");
         
         vm.prank(creator1);
-        address market1 = hub.createMarket("pm-1", "Market 1", block.timestamp + 7 days);
+        address market1 = hub.createMarket(communityId1, "pm-1", "Market 1", block.timestamp + 7 days);
         
         vm.prank(creator2);
-        address market2 = hub.createMarket("pm-2", "Market 2", block.timestamp + 14 days);
+        address market2 = hub.createMarket(communityId2, "pm-2", "Market 2", block.timestamp + 14 days);
         
         // Verify creators
         assertEq(Market(payable(market1)).creator(), creator1);
@@ -386,4 +428,3 @@ contract PredictionHubTest is Test {
         assertEq(creator2Markets[0], market2);
     }
 }
-
