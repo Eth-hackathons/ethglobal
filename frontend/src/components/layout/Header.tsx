@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { SafeConnectButton } from "@/components/SafeConnectButton";
 import { TrendingUp } from "lucide-react";
 
 export const Header = () => {
@@ -40,7 +40,7 @@ export const Header = () => {
         </nav>
 
         <div className="flex items-center gap-3">
-          <ConnectButton />
+          <SafeConnectButton />
         </div>
       </div>
     </header>

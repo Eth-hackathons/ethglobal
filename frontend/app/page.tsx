@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Header } from "@/components/layout/Header";
 import { Button } from "@/components/ui/button";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { SafeConnectButton } from "@/components/SafeConnectButton";
 import { CommunityCard } from "@/components/CommunityCard";
 import { TrendingUp, Users, Clock, Shield } from "lucide-react";
 
@@ -81,7 +81,7 @@ export default function HomePage() {
                   Explore Communities
                 </Link>
               </Button>
-              <ConnectButton />
+              <SafeConnectButton />
             </div>
           </div>
         </div>
