@@ -39,3 +39,5 @@ contracts/ABI/deployment-*.json
 *.tmp
 *.temp
 
+
+.vercel

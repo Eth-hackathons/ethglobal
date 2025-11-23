@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createWalletClient, createPublicClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { defineChain } from "viem";
-import MarketABI from "@/../../contracts/ABI/Market.json";
+import MarketABI from "@/lib/abis/Market.json";
 
 // Define Spicy Testnet chain
 const spicyTestnet = defineChain({
@@ -65,7 +65,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Create wallet client
-    const account = privateKeyToAccount(`0x${privateKey.replace(/^0x/, "")}` as `0x${string}`);
+    const account = privateKeyToAccount(
+      `0x${privateKey.replace(/^0x/, "")}` as `0x${string}`
+    );
     const walletClient = createWalletClient({
       account,
       chain: spicyTestnet,
@@ -88,7 +90,6 @@ export async function POST(request: NextRequest) {
       chain: spicyTestnet,
     });
 
-   
     // Wait for transaction
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
