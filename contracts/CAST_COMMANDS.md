@@ -34,6 +34,8 @@ export HUB_ADDRESS=0x...
 export MARKET_ADDRESS=0x...
 export NETWORK_CONFIG_ADDRESS=0x...
 export MOCK_POLYMARKET_ADDRESS=0x...
+
+export MY_ADDRESS=0x...
 ```
 
 ### Quick RPC Selection
@@ -55,13 +57,13 @@ RPC=$CHILIZ_MAINNET_RPC
 ### Check Balance
 ```bash
 # Check balance of an address
-cast balance 0xYourAddress --rpc-url $RPC
+cast balance $MY_ADDRESS --rpc-url $RPC
 
 # Check your own balance
 cast balance $(cast wallet address --private-key $PRIVATE_KEY) --rpc-url $RPC
 
 # With human-readable format
-cast balance 0xYourAddress --rpc-url $RPC | cast to-unit ether
+cast balance $MY_ADDRESS --rpc-url $RPC | cast to-unit ether
 ```
 
 ### Get Address from Private Key
@@ -83,24 +85,6 @@ cast wallet sign "Your message here" --private-key $PRIVATE_KEY
 
 ## Contract Deployment
 
-### Deploy NetworkConfig
-```bash
-cast send --private-key $PRIVATE_KEY \
-  --rpc-url $RPC \
-  --create $(cat out/NetworkConfig.sol/NetworkConfig.json | jq -r .bytecode.object)
-```
-
-### Deploy PredictionHub
-```bash
-# First deploy NetworkConfig, then:
-NETWORK_CONFIG_ADDRESS=0x...
-
-cast send --private-key $PRIVATE_KEY \
-  --rpc-url $RPC \
-  --create $(cat out/PredictionHub.sol/PredictionHub.json | jq -r .bytecode.object) \
-  --constructor-args $NETWORK_CONFIG_ADDRESS
-```
-
 ### Using Forge Script (Recommended)
 ```bash
 forge script script/Deploy.s.sol \
@@ -112,95 +96,13 @@ forge script script/Deploy.s.sol \
 
 ---
 
-## Reading Contract Data
-
-### Basic Read Operations
-```bash
-# Call a view function
-cast call $CONTRACT_ADDRESS "functionName()" --rpc-url $RPC
-
-# Call with arguments
-cast call $CONTRACT_ADDRESS "functionName(uint256)" 123 --rpc-url $RPC
-
-# Call with address argument
-cast call $CONTRACT_ADDRESS "functionName(address)" 0xAddress --rpc-url $RPC
-
-# Decode the result
-cast call $CONTRACT_ADDRESS "functionName()" --rpc-url $RPC | cast to-dec
-
-# Multiple return values
-cast call $CONTRACT_ADDRESS "getPoolInfo()" --rpc-url $RPC
-```
-
-### Get Contract Code
-```bash
-# Check if contract is deployed
-cast code $CONTRACT_ADDRESS --rpc-url $RPC
-
-# Get contract code size
-cast code $CONTRACT_ADDRESS --rpc-url $RPC | wc -c
-```
-
-### Get Storage Slot
-```bash
-# Read storage at specific slot
-cast storage $CONTRACT_ADDRESS 0 --rpc-url $RPC
-```
-
----
-
-## Writing to Contracts
-
-### Basic Transaction (Send)
-```bash
-# Simple transaction
-cast send $CONTRACT_ADDRESS \
-  "functionName()" \
-  --private-key $PRIVATE_KEY \
-  --rpc-url $RPC
-
-# With arguments
-cast send $CONTRACT_ADDRESS \
-  "functionName(uint256,address)" \
-  123 0xAddress \
-  --private-key $PRIVATE_KEY \
-  --rpc-url $RPC
-
-# With ETH value
-cast send $CONTRACT_ADDRESS \
-  "functionName()" \
-  --value 1ether \
-  --private-key $PRIVATE_KEY \
-  --rpc-url $RPC
-
-# With gas limit
-cast send $CONTRACT_ADDRESS \
-  "functionName()" \
-  --gas-limit 300000 \
-  --private-key $PRIVATE_KEY \
-  --rpc-url $RPC
-```
-
-### Wait for Confirmation
-```bash
-# Send and wait for receipt
-TX_HASH=$(cast send $CONTRACT_ADDRESS "functionName()" \
-  --private-key $PRIVATE_KEY \
-  --rpc-url $RPC \
-  --json | jq -r .transactionHash)
-
-cast receipt $TX_HASH --rpc-url $RPC
-```
-
----
-
 ## PredictionHub Commands
 
 ### Register as Creator
 ```bash
 cast send $HUB_ADDRESS \
   "registerCreator(string,string)" \
-  "My Creator Name" "ipfs://my-metadata-uri" \
+  "Vinny" "ipfs://my-metadata-uri" \
   --private-key $PRIVATE_KEY \
   --rpc-url $RPC
 ```
@@ -224,7 +126,7 @@ cast send $HUB_ADDRESS \
 # Check if address is a creator
 cast call $HUB_ADDRESS \
   "isCreator(address)" \
-  0xCreatorAddress \
+  $MY_ADDRESS \
   --rpc-url $RPC
 
 # Get creator profile
@@ -511,14 +413,14 @@ cast call $NETWORK_CONFIG_ADDRESS \
 cast estimate $CONTRACT_ADDRESS \
   "functionName(uint256)" \
   123 \
-  --from 0xYourAddress \
+  --from $MY_ADDRESS \
   --rpc-url $RPC
 
 # Estimate gas with value
 cast estimate $CONTRACT_ADDRESS \
   "functionName()" \
   --value 1ether \
-  --from 0xYourAddress \
+  --from $MY_ADDRESS \
   --rpc-url $RPC
 ```
 
