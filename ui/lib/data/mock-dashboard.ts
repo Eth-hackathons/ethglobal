@@ -1,0 +1,126 @@
+import type { DashboardStats, CreatorMarket, ActivityItem } from "@/lib/types/dashboard"
+
+export const mockDashboardStats: DashboardStats = {
+  totalCommunities: 12,
+  activeMarkets: 34,
+  totalVolume: 127450,
+  winRate: 72,
+}
+
+export const mockCreatorMarkets: CreatorMarket[] = [
+  {
+    id: "m1",
+    title: "Will Manchester City Win the 2025/26 Premier League Title?",
+    community: "Premier League Predictors",
+    status: "open",
+    closesAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    totalStaked: 84350,
+    totalBets: 1247,
+  },
+  {
+    id: "m2",
+    title: "Will Ferrari Win the 2026 Constructors' Championship?",
+    community: "F1 Forecasters",
+    status: "open",
+    closesAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+    totalStaked: 51200,
+    totalBets: 834,
+  },
+  {
+    id: "m3",
+    title: "Lakers vs Celtics NBA Finals 2026 - Who Wins?",
+    community: "NBA Predictions Hub",
+    status: "closing_soon",
+    closesAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+    totalStaked: 112000,
+    totalBets: 2103,
+  },
+  {
+    id: "m4",
+    title: "Will Djokovic Win the 2026 Wimbledon Title?",
+    community: "Tennis Oracle",
+    status: "open",
+    closesAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    totalStaked: 28700,
+    totalBets: 456,
+  },
+  {
+    id: "m5",
+    title: "Champions League Final 2026 - Real Madrid vs Bayern Munich",
+    community: "Premier League Predictors",
+    status: "closed",
+    closesAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    totalStaked: 203400,
+    totalBets: 3891,
+  },
+  {
+    id: "m6",
+    title: "Will Lewis Hamilton Score a Podium at Monaco GP 2026?",
+    community: "F1 Forecasters",
+    status: "closed",
+    closesAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+    totalStaked: 43800,
+    totalBets: 712,
+  },
+  {
+    id: "m7",
+    title: "Tour de France 2026 General Classification Winner",
+    community: "Cycling Predictions",
+    status: "open",
+    closesAt: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
+    totalStaked: 15300,
+    totalBets: 234,
+  },
+]
+
+export const mockActivityFeed: ActivityItem[] = [
+  {
+    id: "a1",
+    type: "stake",
+    message: '@CryptoKicker staked 500 CHZ on "Man City PL Title"',
+    timestamp: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    unread: true,
+  },
+  {
+    id: "a2",
+    type: "win",
+    message: "You won 2,450 CHZ on Champions League Final market",
+    timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+    unread: true,
+  },
+  {
+    id: "a3",
+    type: "stake",
+    message: '@BettingPro99 staked 1,200 CHZ on "Lakers vs Celtics"',
+    timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    unread: true,
+  },
+  {
+    id: "a4",
+    type: "execution",
+    message: '"Hamilton Monaco Podium" market execution completed',
+    timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
+    unread: false,
+  },
+  {
+    id: "a5",
+    type: "new_market",
+    message: 'New market created: "Tour de France 2026 Winner"',
+    timestamp: new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString(),
+    unread: false,
+  },
+  {
+    id: "a6",
+    type: "stake",
+    message: '@FootballAnalyst staked 800 CHZ on "Ferrari Constructors"',
+    timestamp: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(),
+    unread: false,
+  },
+  {
+    id: "a7",
+    type: "win",
+    message: "You won 890 CHZ on Djokovic Australian Open market",
+    timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
+    unread: false,
+  },
+]
