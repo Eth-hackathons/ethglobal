@@ -289,6 +289,10 @@ contract MarketTest is Test {
         vm.prank(user1);
         market.stake{value: 1 ether}(Market.Outcome.A);
 
+        // Keep market in Settled state after first claim by having more than one winner.
+        vm.prank(user2);
+        market.stake{value: 1 ether}(Market.Outcome.A);
+
         _warpToAfterDeadline();
         
         vm.prank(creator);
@@ -374,17 +378,17 @@ contract MarketTest is Test {
         vm.deal(address(this), payout);
         vm.prank(creator);
         market.mockPolymarketReturn{value: payout}(Market.Outcome.Draw, payout);
-        
+
+        // Others cannot claim while market is still Settled.
+        vm.prank(user1);
+        vm.expectRevert("Market: no stake on winning outcome");
+        market.claim();
+
         // Only user2 can claim (staked on Draw)
         uint256 user2Before = user2.balance;
         vm.prank(user2);
         market.claim();
         assertEq(user2.balance - user2Before, 4 ether);
-        
-        // Others cannot claim
-        vm.prank(user1);
-        vm.expectRevert("Market: no stake on winning outcome");
-        market.claim();
     }
     
     function testGetPotentialReward() public {

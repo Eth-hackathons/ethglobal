@@ -64,3 +64,4 @@ Required safety constraints for cancel:
 - 2026-02-24: Contract readiness review: architecture is good for MVP, but settlement accounting and execution timing need fixes before demo/public usage.
 - 2026-02-24: Implemented contract hardening pass in `Market.sol` and related tests (min stake enforcement, post-deadline execution guard, payout/value consistency, deterministic claim accounting, and timing-aware test updates).
 - 2026-02-24: Aligned settlement API validation to accept explicit zero-payout loss submissions (`payout = 0`).
+- 2026-02-24: Revalidated contracts after fixes: Foundry suite passing (`75/75`) and ABI extraction completed at `contracts/ABI/`.
