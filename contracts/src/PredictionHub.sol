@@ -236,7 +236,8 @@ contract PredictionHub {
             msg.sender,
             polymarketId,
             metadata,
-            stakingDeadline
+            stakingDeadline,
+            config.minStake
         );
         
         marketAddress = address(market);
@@ -558,4 +559,3 @@ contract PredictionHub {
         return (allCreators.length, allMarkets.length, communityCount, tvl);
     }
 }
-

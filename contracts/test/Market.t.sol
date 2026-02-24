@@ -19,6 +19,10 @@ contract MarketTest is Test {
     address public user3 = address(0x4);
     
     uint256 constant INITIAL_BALANCE = 100 ether;
+
+    function _warpToAfterDeadline() internal {
+        vm.warp(market.stakingDeadline());
+    }
     
     function setUp() public {
         // Deploy contracts
@@ -106,9 +110,9 @@ contract MarketTest is Test {
         assertEq(market.getStake(user1, Market.Outcome.A), 1.5 ether);
     }
     
-    function testCannotStakeZeroAmount() public {
+    function testCannotStakeBelowMinimum() public {
         vm.prank(user1);
-        vm.expectRevert("Market: must stake non-zero amount");
+        vm.expectRevert("Market: stake below minimum");
         market.stake{value: 0}(Market.Outcome.A);
     }
     
@@ -128,6 +132,8 @@ contract MarketTest is Test {
         
         vm.prank(user2);
         market.stake{value: 3 ether}(Market.Outcome.B);
+
+        _warpToAfterDeadline();
         
         // Creator triggers with outcome A
         vm.prank(creator);
@@ -148,8 +154,30 @@ contract MarketTest is Test {
     }
     
     function testCannotTriggerWithoutStakes() public {
+        _warpToAfterDeadline();
+
         vm.prank(creator);
         vm.expectRevert("Market: no stakes");
+        market.triggerExecution(Market.Outcome.A);
+    }
+
+    function testCannotTriggerBeforeDeadline() public {
+        vm.prank(user1);
+        market.stake{value: 1 ether}(Market.Outcome.A);
+
+        vm.prank(creator);
+        vm.expectRevert("Market: staking still open");
+        market.triggerExecution(Market.Outcome.A);
+    }
+
+    function testCannotTriggerOutcomeWithoutSupport() public {
+        vm.prank(user1);
+        market.stake{value: 1 ether}(Market.Outcome.B);
+
+        _warpToAfterDeadline();
+
+        vm.prank(creator);
+        vm.expectRevert("Market: no stake on chosen outcome");
         market.triggerExecution(Market.Outcome.A);
     }
     
@@ -157,6 +185,8 @@ contract MarketTest is Test {
         // Setup: stake and trigger
         vm.prank(user1);
         market.stake{value: 5 ether}(Market.Outcome.A);
+
+        _warpToAfterDeadline();
         
         vm.prank(creator);
         market.triggerExecution(Market.Outcome.A);
@@ -173,6 +203,20 @@ contract MarketTest is Test {
         assertEq(uint(market.winningOutcome()), uint(Market.Outcome.A));
         assertEq(market.totalPayout(), payout);
     }
+
+    function testRejectsSettlementValueMismatch() public {
+        vm.prank(user1);
+        market.stake{value: 1 ether}(Market.Outcome.A);
+
+        _warpToAfterDeadline();
+
+        vm.prank(creator);
+        market.triggerExecution(Market.Outcome.A);
+
+        vm.prank(creator);
+        vm.expectRevert("Market: payout/value mismatch");
+        market.mockPolymarketReturn{value: 1 ether}(Market.Outcome.A, 2 ether);
+    }
     
     function testWinnerClaim() public {
         // Setup
@@ -184,6 +228,8 @@ contract MarketTest is Test {
         
         vm.prank(user3);
         market.stake{value: 5 ether}(Market.Outcome.B);
+
+        _warpToAfterDeadline();
         
         // Creator chooses A
         vm.prank(creator);
@@ -215,6 +261,8 @@ contract MarketTest is Test {
         
         vm.prank(user2);
         market.stake{value: 8 ether}(Market.Outcome.A);
+
+        _warpToAfterDeadline();
         
         // Creator chooses A and it wins
         vm.prank(creator);
@@ -240,6 +288,8 @@ contract MarketTest is Test {
     function testCannotClaimTwice() public {
         vm.prank(user1);
         market.stake{value: 1 ether}(Market.Outcome.A);
+
+        _warpToAfterDeadline();
         
         vm.prank(creator);
         market.triggerExecution(Market.Outcome.A);
@@ -263,6 +313,8 @@ contract MarketTest is Test {
         
         vm.prank(user2);
         market.stake{value: 2 ether}(Market.Outcome.B);
+
+        _warpToAfterDeadline();
         
         // Creator chooses A, but B wins
         vm.prank(creator);
@@ -274,7 +326,7 @@ contract MarketTest is Test {
         
         // User1 staked on A (creator's choice) but B won
         vm.prank(user1);
-        vm.expectRevert("Market: chosen outcome did not win");
+        vm.expectRevert("Market: invalid state");
         market.claim();
     }
     
@@ -284,6 +336,8 @@ contract MarketTest is Test {
         
         vm.prank(user2);
         market.stake{value: 2 ether}(Market.Outcome.B);
+
+        _warpToAfterDeadline();
         
         // Creator chooses A and it wins
         vm.prank(creator);
@@ -309,6 +363,8 @@ contract MarketTest is Test {
         
         vm.prank(user3);
         market.stake{value: 1.5 ether}(Market.Outcome.B);
+
+        _warpToAfterDeadline();
         
         // Creator chooses Draw and it wins
         vm.prank(creator);
@@ -337,6 +393,8 @@ contract MarketTest is Test {
         
         vm.prank(user2);
         market.stake{value: 7 ether}(Market.Outcome.A);
+
+        _warpToAfterDeadline();
         
         vm.prank(creator);
         market.triggerExecution(Market.Outcome.A);
@@ -357,6 +415,8 @@ contract MarketTest is Test {
         market.stake{value: 1 ether}(Market.Outcome.A);
         
         assertFalse(market.canClaim(user1)); // Not settled yet
+
+        _warpToAfterDeadline();
         
         vm.prank(creator);
         market.triggerExecution(Market.Outcome.A);
@@ -406,4 +466,3 @@ contract MarketTest is Test {
     
     receive() external payable {}
 }
-

@@ -23,6 +23,7 @@ contract Market {
     string public polymarketId;
     string public metadata;
     uint256 public stakingDeadline;
+    uint256 public minStake;
     MarketState public state;
     
     // Stake tracking: outcome => user => amount
@@ -32,7 +33,10 @@ contract Market {
     // Execution data
     Outcome public chosenOutcome; // Outcome creator chose to bet on
     Outcome public winningOutcome; // Actual winning outcome from Polymarket
+    uint256 public executedAmount; // Total pool sent for execution
     uint256 public totalPayout; // Amount returned from mock Polymarket
+    uint256 public totalClaimed; // Total amount claimed by users
+    uint256 public claimedWinningStake; // Sum of winner stakes that already claimed
     bool public outcomeChosen; // Whether creator has made their choice
     bool public isSettled; // Whether market has been settled
     
@@ -42,6 +46,7 @@ contract Market {
     // Events
     event Staked(address indexed user, Outcome outcome, uint256 amount);
     event ExecutionTriggered(address indexed creator, Outcome chosenOutcome, uint256 totalPool);
+    event ExecutionTransferred(address indexed recipient, uint256 amount);
     event MockBridged(uint256 amount, uint256 timestamp);
     event MockTrading(Outcome chosenOutcome, uint256 amount);
     event MarketSettled(Outcome winningOutcome, uint256 totalPayout);
@@ -70,21 +75,25 @@ contract Market {
      * @param _polymarketId ID of the imported Polymarket market
      * @param _metadata Additional market metadata
      * @param _stakingDeadline Deadline for staking period
+     * @param _minStake Minimum stake amount
      */
     constructor(
         address _creator,
         string memory _polymarketId,
         string memory _metadata,
-        uint256 _stakingDeadline
+        uint256 _stakingDeadline,
+        uint256 _minStake
     ) {
         require(_creator != address(0), "Market: invalid creator");
         require(_stakingDeadline > block.timestamp, "Market: invalid deadline");
+        require(_minStake > 0, "Market: invalid min stake");
         
         creator = _creator;
         hub = msg.sender; // PredictionHub is the deployer
         polymarketId = _polymarketId;
         metadata = _metadata;
         stakingDeadline = _stakingDeadline;
+        minStake = _minStake;
         state = MarketState.Open;
     }
 
@@ -94,7 +103,7 @@ contract Market {
      */
     function stake(Outcome outcome) external payable inState(MarketState.Open) {
         require(block.timestamp < stakingDeadline, "Market: staking period ended");
-        require(msg.value > 0, "Market: must stake non-zero amount");
+        require(msg.value >= minStake, "Market: stake below minimum");
         
         // Check if user is a member of the market's community
         IPredictionHub hubContract = IPredictionHub(hub);
@@ -115,15 +124,24 @@ contract Market {
      * @param outcome The outcome the creator wants to bet on
      */
     function triggerExecution(Outcome outcome) external onlyCreator inState(MarketState.Open) {
+        require(block.timestamp >= stakingDeadline, "Market: staking still open");
         require(getTotalPool() > 0, "Market: no stakes");
+        require(totalStakes[outcome] > 0, "Market: no stake on chosen outcome");
         
         chosenOutcome = outcome;
         outcomeChosen = true;
         state = MarketState.Locked;
         
         uint256 totalPool = getTotalPool();
+        executedAmount = totalPool;
         
         emit ExecutionTriggered(creator, outcome, totalPool);
+
+        // For the MVP mock flow, we simulate external execution by transferring
+        // the committed pool to the creator (execution operator).
+        (bool transferred, ) = creator.call{value: totalPool}("");
+        require(transferred, "Market: execution transfer failed");
+        emit ExecutionTransferred(creator, totalPool);
         
         // Automatically progress to mock bridge
         _mockBridge();
@@ -135,9 +153,7 @@ contract Market {
      */
     function _mockBridge() internal inState(MarketState.Locked) {
         state = MarketState.MockBridged;
-        uint256 totalPool = getTotalPool();
-        
-        emit MockBridged(totalPool, block.timestamp);
+        emit MockBridged(executedAmount, block.timestamp);
         
         // Automatically progress to mock trading
         _mockTrading();
@@ -149,9 +165,7 @@ contract Market {
      */
     function _mockTrading() internal inState(MarketState.MockBridged) {
         state = MarketState.MockTrading;
-        uint256 totalPool = getTotalPool();
-        
-        emit MockTrading(chosenOutcome, totalPool);
+        emit MockTrading(chosenOutcome, executedAmount);
     }
 
     /**
@@ -171,13 +185,23 @@ contract Market {
             msg.sender == creator || msg.sender == hub,
             "Market: unauthorized"
         );
+        require(msg.value == _payout, "Market: payout/value mismatch");
+        if (chosenOutcome != _winningOutcome) {
+            require(_payout == 0, "Market: payout must be zero on loss");
+        }
         
         winningOutcome = _winningOutcome;
         totalPayout = _payout;
         isSettled = true;
-        state = MarketState.Settled;
         
         emit MarketSettled(_winningOutcome, _payout);
+
+        if (chosenOutcome == winningOutcome && totalPayout > 0) {
+            state = MarketState.Settled;
+        } else {
+            state = MarketState.Completed;
+            emit MarketCompleted();
+        }
     }
 
     /**
@@ -197,9 +221,17 @@ contract Market {
         
         // Calculate proportional reward
         uint256 totalWinningStake = totalStakes[chosenOutcome];
-        uint256 reward = (userStake * totalPayout) / totalWinningStake;
+        uint256 reward;
+        // Last claimant receives the remainder to avoid dust accumulation.
+        if (claimedWinningStake + userStake == totalWinningStake) {
+            reward = totalPayout - totalClaimed;
+        } else {
+            reward = (userStake * totalPayout) / totalWinningStake;
+        }
         
         hasClaimed[msg.sender] = true;
+        claimedWinningStake += userStake;
+        totalClaimed += reward;
         
         // Transfer reward
         (bool success, ) = msg.sender.call{value: reward}("");
@@ -207,8 +239,8 @@ contract Market {
         
         emit Claimed(msg.sender, reward);
         
-        // Check if all funds distributed to mark as completed
-        if (address(this).balance == 0) {
+        // Mark market as completed once all winning stake has claimed.
+        if (claimedWinningStake == totalWinningStake || totalClaimed == totalPayout) {
             state = MarketState.Completed;
             emit MarketCompleted();
         }
@@ -319,4 +351,3 @@ contract Market {
         // Accept funds from mock Polymarket return
     }
 }
-

@@ -112,6 +112,8 @@ contract IntegrationTest is Test {
         console.log("- Total:", market.getTotalPool() / 1 ether, "ETH");
         
         assertEq(market.getTotalPool(), 10 ether);
+
+        vm.warp(block.timestamp + 8 days);
         
         // === PHASE 4: CREATOR TRIGGERS ===
         console.log("\n=== Phase 4: Creator Triggers Execution ===");
@@ -210,6 +212,8 @@ contract IntegrationTest is Test {
         
         vm.prank(bob);
         market.stake{value: 6 ether}(Market.Outcome.B); // No
+
+        vm.warp(block.timestamp + 31 days);
         
         // Creator chooses YES (Outcome A)
         vm.prank(creator);
@@ -312,6 +316,8 @@ contract IntegrationTest is Test {
         
         vm.prank(charlie);
         market.stake{value: 1 ether}(Market.Outcome.B);
+
+        vm.warp(block.timestamp + 4 days);
         
         // Creator predicts Draw
         vm.prank(creator);
@@ -341,4 +347,3 @@ contract IntegrationTest is Test {
     
     receive() external payable {}
 }
-

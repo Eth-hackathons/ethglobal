@@ -48,9 +48,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!payout) {
+    if (payout === undefined || payout === null) {
       return NextResponse.json(
-        { error: "payout is required (in CHZ, e.g., '1.5' for 1.5 CHZ)" },
+        {
+          error:
+            "payout is required (in CHZ, e.g., '1.5' for 1.5 CHZ, or '0' on loss)",
+        },
         { status: 400 }
       );
     }

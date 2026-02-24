@@ -46,7 +46,7 @@ Required safety constraints for cancel:
 
 1. Finalize execution rules (owner decision, fallback, cancel constraints) in contracts + UI.
 2. Ensure CRE flow is working end-to-end with real config values.
-3. Harden market settlement/accounting logic before public demo.
+3. Complete contract hardening validation and redeploy ABIs for UI integration.
 4. Execute UI integration plan directly in `ui/` and replace mock data with live integrations.
 5. Tighten demo narrative for Chainlink hackathon submission.
 6. Keep this README continuously updated.
@@ -62,3 +62,5 @@ Required safety constraints for cancel:
 - 2026-02-24: Added initial step-by-step migration plan (`MIGRATION_PLAN.md`).
 - 2026-02-24: Updated direction: active work happens in `ui/` only. `MIGRATION_PLAN.md` was rewritten as a pure UI integration plan; legacy app is reference-only for quick integration checks.
 - 2026-02-24: Contract readiness review: architecture is good for MVP, but settlement accounting and execution timing need fixes before demo/public usage.
+- 2026-02-24: Implemented contract hardening pass in `Market.sol` and related tests (min stake enforcement, post-deadline execution guard, payout/value consistency, deterministic claim accounting, and timing-aware test updates).
+- 2026-02-24: Aligned settlement API validation to accept explicit zero-payout loss submissions (`payout = 0`).

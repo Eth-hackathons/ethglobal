@@ -248,6 +248,8 @@ contract PredictionHubTest is Test {
         Market market1 = Market(payable(market1Addr));
         vm.prank(creator1);
         market1.stake{value: 1 ether}(Market.Outcome.A);
+
+        vm.warp(block.timestamp + 8 days);
         
         vm.prank(creator1);
         market1.triggerExecution(Market.Outcome.A);
@@ -278,6 +280,8 @@ contract PredictionHubTest is Test {
         Market market1 = Market(payable(market1Addr));
         vm.prank(creator1);
         market1.stake{value: 1 ether}(Market.Outcome.A);
+
+        vm.warp(block.timestamp + 8 days);
         
         vm.prank(creator1);
         market1.triggerExecution(Market.Outcome.A);
